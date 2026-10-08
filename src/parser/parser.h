@@ -341,6 +341,8 @@ typedef struct ModuleState
         currently_parsing; ///< Set: files whose import is in progress (for cycle detection).
     zmap_PluginMap imported_plugins; ///< Map: alias → ImportedPlugin*.
     zmap_FileSet wildcard_imports;   ///< Set: module base names imported via `as *`.
+    zmap_FileSet module_prefixes;    ///< Map: module file path → its symbol prefix.
+    zmap_FileSet prefix_owners;      ///< Map: symbol prefix → the file path that owns it.
 } ModuleState;
 
 /* * Initialize all maps in a ModuleState. Call once after zeroing the struct. */
@@ -352,6 +354,8 @@ static inline void module_state_init(ModuleState *ms)
     ms->imported_plugins = zmap_init(PluginMap, zmap_hash_cstr, zmap_cmp_cstr);
     ms->currently_parsing = zmap_init(FileSet, zmap_hash_cstr, zmap_cmp_cstr);
     ms->wildcard_imports = zmap_init(FileSet, zmap_hash_cstr, zmap_cmp_cstr);
+    ms->module_prefixes = zmap_init(FileSet, zmap_hash_cstr, zmap_cmp_cstr);
+    ms->prefix_owners = zmap_init(FileSet, zmap_hash_cstr, zmap_cmp_cstr);
 }
 
 /**
@@ -845,6 +849,7 @@ EnumVariantReg *find_enum_variant_of(ParserContext *ctx, const char *enum_name,
 int expr_is_rvalue(ParserContext *ctx, ASTNode *e);
 TypeAlias *find_type_alias_node(ParserContext *ctx, const char *name);
 char *extract_module_name(const char *path);
+char *module_prefix_for(ParserContext *ctx, const char *path);
 ASTNode *transform_to_trait_object(ParserContext *ctx, const char *target_trait, ASTNode *expr);
 int check_impl(ParserContext *ctx, const char *trait_name, const char *type_name);
 int check_opaque_alias_compat(ParserContext *ctx, Type *a, Type *b);
