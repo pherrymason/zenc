@@ -1,7 +1,9 @@
 #!/bin/bash
 # Runs every test with two zc binaries and lists the tests whose outcome
 # (exit code of `zc run`) differs. Use it to check that a compiler change
-# does not regress anything compared with a reference build.
+# does not regress anything compared with a reference build. A test marked
+# `// EXPECT: FAIL` counts as passing (0) when `zc run` fails and as failing
+# (1) when it succeeds, as in run_tests.sh.
 #
 # Usage: tests/scripts/compare_compilers.sh OLD_ZC NEW_ZC [test.zc...]
 #   Without test files it uses tests/scripts/list_tests.sh.
@@ -36,7 +38,11 @@ run_one() {
     local id
     id=$(printf '%s' "$3" | tr '/.' '__')
     "$2" run -w "$3" -o "$WORK/$1$id" >/dev/null 2>&1
-    echo "$? $3" >> "$WORK/$1.txt"
+    local rc=$?
+    if grep -q "// EXPECT: FAIL" "$3"; then
+        if [ $rc -ne 0 ]; then rc=0; else rc=1; fi
+    fi
+    echo "$rc $3" >> "$WORK/$1.txt"
 }
 export -f run_one
 export WORK
