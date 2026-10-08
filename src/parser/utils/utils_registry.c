@@ -680,6 +680,67 @@ void re_export_wildcard_symbols(ParserContext *ctx, const char *module_base)
     zfree(prefix);
 }
 
+// The symbol prefix of a module imported with `as`, selectively or as `*`.
+// Normally its file name (`helpers.zc` → `helpers`); when another file already
+// owns that prefix (`facts/helpers.zc` and `casefile/helpers.zc`), the parent
+// directory is prepended (`casefile_helpers`), then a counter if still taken.
+// The same path always gets the same prefix within a build.
+char *module_prefix_for(ParserContext *ctx, const char *path)
+{
+    const char **known = zmap_get(&ctx->imports.module_prefixes, path);
+    if (known)
+    {
+        return xstrdup(*known);
+    }
+
+    char *prefix = extract_module_name(path);
+    const char **owner = zmap_get(&ctx->imports.prefix_owners, prefix);
+    if (owner && strcmp(*owner, path) != 0)
+    {
+        // `<parent dir>_<file>`
+        const char *end = strrchr(path, '/');
+        const char *start = path;
+        if (end)
+        {
+            const char *p = end - 1;
+            while (p > path && *p != '/')
+            {
+                p--;
+            }
+            start = (*p == '/') ? p + 1 : p;
+        }
+        size_t dir_len = end ? (size_t)(end - start) : 0;
+        size_t cap = dir_len + strlen(prefix) + 16;
+        char *qualified = xmalloc(cap);
+        snprintf(qualified, cap, "%.*s_%s", (int)dir_len, start, prefix);
+        for (char *c = qualified; *c; c++)
+        {
+            if (!isalnum((unsigned char)*c))
+            {
+                *c = '_';
+            }
+        }
+        int counter = 2;
+        char *candidate = xstrdup(qualified);
+        while ((owner = zmap_get(&ctx->imports.prefix_owners, candidate)) &&
+               strcmp(*owner, path) != 0)
+        {
+            zfree(candidate);
+            candidate = xmalloc(cap);
+            snprintf(candidate, cap, "%s%d", qualified, counter++);
+        }
+        zfree(qualified);
+        zfree(prefix);
+        prefix = candidate;
+    }
+
+    char *stored_path = xstrdup(path);
+    char *stored_prefix = xstrdup(prefix);
+    zmap_put(&ctx->imports.module_prefixes, stored_path, stored_prefix);
+    zmap_put(&ctx->imports.prefix_owners, stored_prefix, stored_path);
+    return prefix;
+}
+
 char *extract_module_name(const char *path)
 {
     const char *slash = (char *)strrchr(path, '/');
