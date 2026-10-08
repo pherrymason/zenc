@@ -518,8 +518,15 @@ bench: $(TARGET)
 # Test
 # Supports running specific tests:
 #	make test only="tests/std/test_hash.zc examples/arena_test.zc"
+# macOS ships bash 3.2 and BSD sed, which run_tests.sh does not support.
+ifeq ($(shell uname -s),Darwin)
+TEST_RUNNER = ./tests/scripts/run_tests_mac.sh
+else
+TEST_RUNNER = ./tests/scripts/run_tests.sh
+endif
+
 test: $(TARGET) $(PLUGINS)
-	./tests/scripts/run_tests.sh -- $(filter %.zc,$(only))
+	$(TEST_RUNNER) -- $(filter %.zc,$(only))
 	./tests/scripts/run_codegen_tests.sh $(filter %.zc,$(only))
 	./tests/scripts/run_example_transpile.sh $(filter %.zc,$(only))
 	./tests/scripts/run_example_build.sh $(filter %.zc,$(only))
