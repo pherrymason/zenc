@@ -622,11 +622,6 @@ char *consume_until_semicolon(Lexer *l);
  */
 int is_c_reserved_word(const char *name);
 
-/**
- * @brief Warns about a C reserved word.
- */
-void warn_c_reserved_word(Token t, const char *name);
-
 // ZenSymbol table
 
 /**
@@ -798,6 +793,8 @@ int is_reserved_keyword(Token t);
  * @brief Checks if an identifier is valid (not a keyword).
  */
 void check_identifier(Token t);
+void check_reserved_keyword(Token t);
+void check_c_identifier(Token t);
 
 /**
  * @brief Main loop to parse top-level nodes in a file.
