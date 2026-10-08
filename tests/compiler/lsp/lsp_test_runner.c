@@ -480,6 +480,22 @@ static void test_code_action()
     free(resp);
 }
 
+static void test_declaration(void)
+{
+    printf("Running test_declaration...\n");
+    // test_definition opened /tmp/test_def.zc, where `target()` on line 2 is defined on line 0.
+    send_request("{\"jsonrpc\": \"2.0\", \"id\": 61, \"method\": \"textDocument/declaration\", "
+                 "\"params\": {\"textDocument\": {\"uri\": \"file:///tmp/test_def.zc\"}, "
+                 "\"position\": {\"line\": 2, \"character\": 6}}}");
+    char *resp = wait_for_response(61);
+    if (!resp || !strstr(resp, "\"line\":0"))
+    {
+        fail("Go to declaration must find target() on line 0");
+    }
+    free(resp);
+    printf("PASS: test_declaration\n");
+}
+
 static void test_shutdown()
 {
     printf("Running test_shutdown...\n");
@@ -912,6 +928,7 @@ int main()
     test_diagnostics();
     test_semantic_tokens();
     test_definition();
+    test_declaration();
     test_references();
     test_rename();
     test_outline();
