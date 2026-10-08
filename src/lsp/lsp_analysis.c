@@ -3,6 +3,7 @@
 #include "../constants.h"
 #include "../ast/primitives.h"
 #include "lsp_project.h" // Includes lsp_index.h, parser.h
+#include "lsp_c_headers.h"
 #include "../plugins/plugin_manager.h"
 #include <ctype.h>
 #include <stdio.h>
@@ -273,11 +274,22 @@ void lsp_goto_definition(const char *uri, int line, int col, int id)
         }
     }
 
+    const CHeaderSymbol *c_symbols[8];
+    int c_symbol_count = 0;
+    if (!found && pf->source)
+    {
+        c_symbol_count = lsp_c_headers_find_at(pf->path, pf->source, line, col, c_symbols, 8);
+    }
+
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "jsonrpc", "2.0");
     cJSON_AddNumberToObject(root, "id", id);
 
-    if (found)
+    if (c_symbol_count > 0)
+    {
+        cJSON_AddItemToObject(root, "result", lsp_c_headers_locations(c_symbols, c_symbol_count));
+    }
+    else if (found)
     {
         cJSON *result = cJSON_CreateObject();
         cJSON_AddStringToObject(result, "uri", target_uri);
@@ -516,6 +528,7 @@ void lsp_hover(const char *uri, int line, int col, int id)
     LSPRange *r = lsp_find_at(idx, line, col);
     const char *text = NULL;
     int is_primitive = 0;
+    char *c_hover = NULL;
 
     if (r)
     {
@@ -600,6 +613,16 @@ void lsp_hover(const char *uri, int line, int col, int id)
         }
     }
 
+    if (!text && pf && pf->source)
+    {
+        const CHeaderSymbol *c_symbol = NULL;
+        if (lsp_c_headers_find_at(pf->path, pf->source, line, col, &c_symbol, 1) > 0)
+        {
+            c_hover = lsp_c_headers_hover(c_symbol);
+            text = c_hover;
+        }
+    }
+
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "jsonrpc", "2.0");
     cJSON_AddNumberToObject(root, "id", id);
@@ -610,7 +633,7 @@ void lsp_hover(const char *uri, int line, int col, int id)
         cJSON *contents = cJSON_CreateObject();
         cJSON_AddStringToObject(contents, "kind", "markdown");
 
-        if (is_primitive)
+        if (is_primitive || c_hover)
         {
             cJSON_AddStringToObject(contents, "value", text);
         }
@@ -633,6 +656,7 @@ void lsp_hover(const char *uri, int line, int col, int id)
     }
 
     send_json_response(root);
+    libc_free(c_hover);
 }
 
 static void enqueue_node_children(ASTNode *curr, ASTNode **queue, int *q_tail, int q_limit)
