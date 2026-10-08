@@ -74,6 +74,7 @@ char *lsp_semantic_tokens_full(const char *uri);
 void lsp_on_error(void *data, Token t, const char *msg);
 void lsp_on_diagnostic(void *data, Token t, int severity, const char *msg, int diag_id);
 void lsp_check_file(const char *uri, const char *src, int id);
+void lsp_close_file(const char *uri);
 void lsp_goto_definition(const char *uri, int line, int col, int id);
 void lsp_hover(const char *uri, int line, int col, int id);
 void lsp_completion(const char *uri, int line, int col, int id);
