@@ -843,6 +843,8 @@ Type *parse_type_formal(ParserContext *ctx, Lexer *l);
 Type *type_from_string_helper(const char *c);
 FuncSig *find_func(ParserContext *ctx, const char *name);
 EnumVariantReg *find_enum_variant(ParserContext *ctx, const char *name);
+EnumVariantReg *find_enum_variant_of(ParserContext *ctx, const char *enum_name,
+                                     const char *variant_name);
 TypeAlias *find_type_alias_node(ParserContext *ctx, const char *name);
 char *extract_module_name(const char *path);
 ASTNode *transform_to_trait_object(ParserContext *ctx, const char *target_trait, ASTNode *expr);
