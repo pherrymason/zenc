@@ -13,6 +13,81 @@
 
 static ASTNode *parse_expr_prec_impl(ParserContext *ctx, Lexer *l, Precedence min_prec);
 
+// Method calls parse their arguments inline instead of through parse_call_args,
+// so they need the same signature-driven fix-ups free-function calls get:
+// default values for the trailing parameters that were not given, and the
+// implicit cast of `&value` to a trait object where the parameter is a trait.
+// `head` already includes the receiver when the method takes `self`, so it is
+// aligned with `sig->arg_types`.
+static ASTNode *apply_method_signature(ParserContext *ctx, FuncSig *sig, ASTNode *head,
+                                       int *count)
+{
+    if (sig->defaults && sig->arg_types)
+    {
+        ASTNode *tail = head;
+        while (tail && tail->next)
+        {
+            tail = tail->next;
+        }
+        for (int i = *count; i < sig->total_args && sig->defaults[i]; i++)
+        {
+            Lexer def_l;
+            lexer_init(&def_l, sig->defaults[i], ctx->config, ctx->current_filename);
+            ASTNode *def = parse_expression(ctx, &def_l);
+            if (!def)
+            {
+                break;
+            }
+            if (tail)
+            {
+                tail->next = def;
+            }
+            else
+            {
+                head = def;
+            }
+            tail = def;
+            (*count)++;
+        }
+    }
+
+    if (sig->arg_types)
+    {
+        ASTNode *prev = NULL;
+        ASTNode *arg = head;
+        int index = 0;
+        while (arg)
+        {
+            ASTNode *next = arg->next;
+            if (index < sig->total_args)
+            {
+                Type *expected = sig->arg_types[index];
+                if (expected && expected->name && is_trait(expected->name))
+                {
+                    ASTNode *cast = transform_to_trait_object(ctx, expected->name, arg);
+                    if (cast != arg)
+                    {
+                        cast->next = next;
+                        if (prev)
+                        {
+                            prev->next = cast;
+                        }
+                        else
+                        {
+                            head = cast;
+                        }
+                        arg = cast;
+                    }
+                }
+            }
+            prev = arg;
+            arg = next;
+            index++;
+        }
+    }
+    return head;
+}
+
 ASTNode *parse_expr_prec(ParserContext *ctx, Lexer *l, Precedence min_prec)
 {
     if (++ctx->recursion_depth > 64)
@@ -1263,6 +1338,11 @@ static ASTNode *parse_expr_prec_impl(ParserContext *ctx, Lexer *l, Precedence mi
                     zfree(arg_names);
                     arg_names = new_names;
                 }
+            }
+
+            if (resolved_sig && !has_named)
+            {
+                head = apply_method_signature(ctx, resolved_sig, head, &count);
             }
 
             call->call.args = head;
