@@ -90,6 +90,7 @@ void lsp_goto_definition(const char *uri, int line, int col, int id);
 void lsp_hover(const char *uri, int line, int col, int id);
 void lsp_completion(const char *uri, int line, int col, int id);
 void lsp_document_symbol(const char *uri, int id);
+void lsp_workspace_symbol(const char *query, int id);
 void lsp_references(const char *uri, int line, int col, int id);
 void lsp_signature_help(const char *uri, int line, int col, int id);
 void lsp_rename(const char *uri, int line, int col, const char *new_name, int id);

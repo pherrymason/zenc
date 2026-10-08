@@ -1624,46 +1624,50 @@ void lsp_completion(const char *uri, int line, int col, int id)
     send_json_response(root);
 }
 
+// Name and LSP SymbolKind of a declaration, or NULL when the node is not one.
+static const char *declaration_name(ASTNode *node, int *kind)
+{
+    if (node->kind == NODE_FUNCTION)
+    {
+        *kind = 12;
+        return node->func.name;
+    }
+    if (node->kind == NODE_STRUCT)
+    {
+        *kind = 23;
+        return node->strct.name;
+    }
+    if (node->kind == NODE_VAR_DECL)
+    {
+        *kind = 13;
+        return node->var_decl.name;
+    }
+    if (node->kind == NODE_CONST)
+    {
+        *kind = 14;
+        return node->var_decl.name;
+    }
+    if (node->kind == NODE_ENUM)
+    {
+        *kind = 10;
+        return node->enm.name;
+    }
+    if (node->kind == NODE_FIELD)
+    {
+        *kind = 8;
+        return node->field.name;
+    }
+    return NULL;
+}
+
 static cJSON *ast_to_symbol(ASTNode *node)
 {
     if (!node)
     {
         return NULL;
     }
-    char *name = NULL;
     int kind = 0;
-
-    if (node->kind == NODE_FUNCTION)
-    {
-        name = node->func.name;
-        kind = 12;
-    }
-    else if (node->kind == NODE_STRUCT)
-    {
-        name = node->strct.name;
-        kind = 23;
-    }
-    else if (node->kind == NODE_VAR_DECL)
-    {
-        name = node->var_decl.name;
-        kind = 13;
-    }
-    else if (node->kind == NODE_CONST)
-    {
-        name = node->var_decl.name;
-        kind = 14;
-    }
-    else if (node->kind == NODE_ENUM)
-    {
-        name = node->enm.name;
-        kind = 10;
-    }
-    else if (node->kind == NODE_FIELD)
-    {
-        name = node->field.name;
-        kind = 8;
-    }
-
+    const char *name = declaration_name(node, &kind);
     if (!name)
     {
         return NULL;
@@ -1741,6 +1745,126 @@ void lsp_document_symbol(const char *uri, int id)
             cJSON_AddItemToArray(items, s);
         }
         node = node->next; // Top level siblings
+    }
+
+    cJSON_AddItemToObject(root, "result", items);
+    send_json_response(root);
+}
+
+// `query` matches `name` when its characters appear in it in order, ignoring case. The
+// client ranks and filters the results further.
+static int matches_query(const char *name, const char *query)
+{
+    for (; *query; query++)
+    {
+        int wanted = tolower((unsigned char)*query);
+        while (*name && tolower((unsigned char)*name) != wanted)
+        {
+            name++;
+        }
+        if (!*name)
+        {
+            return 0;
+        }
+        name++;
+    }
+    return 1;
+}
+
+static void add_workspace_symbol(cJSON *items, const char *name, int kind, const char *uri,
+                                 Token token, const char *container)
+{
+    int line = token.line > 0 ? token.line - 1 : 0;
+    int col = token.col > 0 ? token.col - 1 : 0;
+    cJSON *item = cJSON_CreateObject();
+    cJSON_AddStringToObject(item, "name", name);
+    cJSON_AddNumberToObject(item, "kind", kind);
+    if (container)
+    {
+        cJSON_AddStringToObject(item, "containerName", container);
+    }
+    cJSON *location = cJSON_CreateObject();
+    cJSON_AddStringToObject(location, "uri", uri);
+    cJSON *range = cJSON_CreateObject();
+    cJSON *start = cJSON_CreateObject();
+    cJSON_AddNumberToObject(start, "line", line);
+    cJSON_AddNumberToObject(start, "character", col);
+    cJSON *end = cJSON_CreateObject();
+    cJSON_AddNumberToObject(end, "line", line);
+    cJSON_AddNumberToObject(end, "character", col + (int)token.len);
+    cJSON_AddItemToObject(range, "start", start);
+    cJSON_AddItemToObject(range, "end", end);
+    cJSON_AddItemToObject(location, "range", range);
+    cJSON_AddItemToObject(item, "location", location);
+    cJSON_AddItemToArray(items, item);
+}
+
+#define MAX_WORKSPACE_SYMBOLS 500
+
+void lsp_workspace_symbol(const char *query, int id)
+{
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "jsonrpc", "2.0");
+    cJSON_AddNumberToObject(root, "id", id);
+    cJSON *items = cJSON_CreateArray();
+    int count = 0;
+
+    for (ProjectFile *pf = g_project ? g_project->files : NULL; pf && count < MAX_WORKSPACE_SYMBOLS;
+         pf = pf->next)
+    {
+        ASTNode *node = pf->ast;
+        if (node && node->kind == NODE_ROOT)
+        {
+            node = node->root.children;
+        }
+        for (; node && count < MAX_WORKSPACE_SYMBOLS; node = node->next)
+        {
+            int kind = 0;
+            const char *name = declaration_name(node, &kind);
+            if (!name && node->kind == NODE_TRAIT)
+            {
+                name = node->trait.name;
+                kind = 11;
+            }
+            if (name && matches_query(name, query))
+            {
+                add_workspace_symbol(items, name, kind, pf->uri, node->token, NULL);
+                count++;
+            }
+
+            ASTNode *methods = NULL;
+            const char *container = NULL;
+            if (node->kind == NODE_IMPL)
+            {
+                methods = node->impl.methods;
+                container = node->impl.struct_name;
+            }
+            else if (node->kind == NODE_IMPL_TRAIT)
+            {
+                methods = node->impl_trait.methods;
+                container = node->impl_trait.target_type;
+            }
+            for (ASTNode *method = methods; method && count < MAX_WORKSPACE_SYMBOLS;
+                 method = method->next)
+            {
+                if (method->kind != NODE_FUNCTION || !method->func.name)
+                {
+                    continue;
+                }
+                // The parser prefixes methods with their type (`Rect__area`).
+                const char *short_name = method->func.name;
+                const char *separator;
+                while ((separator = strstr(short_name, "__")) != NULL)
+                {
+                    short_name = separator + 2;
+                }
+                if (matches_query(short_name, query))
+                {
+                    add_workspace_symbol(items, short_name, 6, pf->uri, method->token, container);
+                    count++;
+                }
+            }
+        }
     }
 
     cJSON_AddItemToObject(root, "result", items);
