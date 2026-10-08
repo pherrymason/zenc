@@ -17,18 +17,19 @@ ASTNode *parse_function(ParserContext *ctx, Lexer *l, int is_async, int is_exter
 {
     lexer_next(l);
     Token name_tok = lexer_next(l);
-    check_identifier(name_tok);
+    check_reserved_keyword(name_tok);
+    // Methods are emitted with a prefix (`Type__default`) and extern functions
+    // keep their C name, so only free functions may not be named like a C
+    // keyword.
+    if (!ctx->current_impl_struct && !is_extern)
+    {
+        check_c_identifier(name_tok);
+    }
     char *name = token_strdup(name_tok);
 
     if (is_async)
     {
         ctx->cg.has_async = 1;
-    }
-
-    // Check for C reserved word conflict
-    if (is_c_reserved_word(name))
-    {
-        warn_c_reserved_word(name_tok, name);
     }
 
     char *gen_param = NULL;
