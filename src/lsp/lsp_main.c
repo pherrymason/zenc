@@ -34,6 +34,7 @@ int lsp_main(int argc, char **argv)
 
     g_config.mode_lsp = 1;
     g_config.json_output = 1;
+    fprintf(stderr, "zls: zc-lsp %s\n", ZEN_VERSION);
 
     // Initialize root path from executable to find std/
     char self_path[MAX_PATH_LEN];
