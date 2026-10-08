@@ -869,7 +869,10 @@ void print_type_defs(ParserContext *ctx, ASTNode *nodes)
             {
                 EMIT(ctx, "typedef struct %s %s;\n", final_name, final_name);
             }
-            // Simple enums will be emitted as 'typedef enum' later in emit_struct_defs
+            else
+            {
+                emit_simple_enum(ctx, local);
+            }
         }
 
         local = local->next;
@@ -897,40 +900,9 @@ void print_type_defs(ParserContext *ctx, ASTNode *nodes)
         c = c->next;
     }
 
-    // Emit full tuple struct definitions (typedef + body).
-    // Must come before enum protos and user struct/enum bodies,
-    // which may reference tuple types by value.
-    // used_tuples is LIFO; reverse so inner (declared first) tuples come first.
-    int tup_count = 0;
-    TupleType *tup = ctx->used_tuples;
-    while (tup)
-    {
-        tup_count++;
-        tup = tup->next;
-    }
-    if (tup_count > 0)
-    {
-        TupleType **tup_arr = xmalloc(sizeof(TupleType *) * (size_t)tup_count);
-        tup = ctx->used_tuples;
-        for (int ti = tup_count - 1; ti >= 0; ti--)
-        {
-            tup_arr[ti] = tup;
-            tup = tup->next;
-        }
-        for (int ti = 0; ti < tup_count; ti++)
-        {
-            char *clean_sig = sanitize_mangled_name(tup_arr[ti]->sig);
-            EMIT(ctx, "typedef struct Tuple__%s Tuple__%s;\nstruct Tuple__%s { ", clean_sig,
-                 clean_sig, clean_sig);
-            zfree(clean_sig);
-            for (int i = 0; i < tup_arr[ti]->count; i++)
-            {
-                EMIT(ctx, "%s v%d; ", tup_arr[ti]->types[i], i);
-            }
-            EMIT(ctx, "};\n");
-        }
-        zfree(tup_arr);
-    }
+    // Tuple structs (`Tuple__...`) are part of the topologically sorted list:
+    // their forward typedef comes from the loop above and their body from
+    // emit_struct_defs, after the types they contain.
 
     // End of type definitions
 }

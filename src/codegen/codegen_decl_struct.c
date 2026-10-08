@@ -13,6 +13,52 @@
 #include "codegen_internal.h"
 
 // Emit struct and enum definitions.
+int enum_has_payload(ASTNode *node)
+{
+    ASTNode *v = node->enm.variants;
+    while (v)
+    {
+        if (v->variant.payload)
+        {
+            return 1;
+        }
+        v = v->next;
+    }
+    return 0;
+}
+
+// A payload-less enum: a C enum plus one constructor per variant. It depends on
+// no other type, so it is emitted before anything that could use it (tagged
+// enum constructors, generic instantiations such as Vec<Kind>, aliases...).
+void emit_simple_enum(ParserContext *ctx, ASTNode *node)
+{
+    const char *final_name = node->link_name ? node->link_name : node->enm.name;
+    if (node->cfg_condition)
+    {
+        EMIT(ctx, "#if %s\n", node->cfg_condition);
+    }
+    EMIT(ctx, "typedef enum { ");
+    ASTNode *v = node->enm.variants;
+    while (v)
+    {
+        EMIT(ctx, "%s__%s_Tag, ", final_name, v->variant.name);
+        v = v->next;
+    }
+    EMIT(ctx, "} %s;\n\n", final_name);
+    v = node->enm.variants;
+    while (v)
+    {
+        EMIT(ctx, "static inline %s %s__%s() { return %s__%s_Tag; }\n", final_name, final_name,
+             v->variant.name, final_name, v->variant.name);
+        v = v->next;
+    }
+    EMIT(ctx, "\n");
+    if (node->cfg_condition)
+    {
+        EMIT(ctx, "#endif\n");
+    }
+}
+
 static void emit_struct_defs_internal(ParserContext *ctx, ASTNode *node, VisitedModules **visited,
                                       int depth, int filter_type)
 {
@@ -207,46 +253,20 @@ static void emit_struct_defs_internal(ParserContext *ctx, ASTNode *node, Visited
         }
         else if (node->kind == NODE_ENUM)
         {
+            // Payload-less enums are emitted up front by print_type_defs: they
+            // depend on nothing and everything else may use them.
+            if (!enum_has_payload(node))
+            {
+                node = node->next;
+                continue;
+            }
+
             const char *final_name = node->link_name ? node->link_name : node->enm.name;
             if (node->cfg_condition)
             {
                 EMIT(ctx, "#if %s\n", node->cfg_condition);
             }
 
-            int has_payload = 0;
-            v = node->enm.variants;
-            while (v)
-            {
-                if (v->variant.payload)
-                {
-                    has_payload = 1;
-                    break;
-                }
-                v = v->next;
-            }
-
-            if (!has_payload)
-            {
-                EMIT(ctx, "typedef enum { ");
-                v = node->enm.variants;
-                while (v)
-                {
-                    EMIT(ctx, "%s__%s_Tag, ", final_name, v->variant.name);
-                    v = v->next;
-                }
-                EMIT(ctx, "} %s;\n\n", final_name);
-
-                v = node->enm.variants;
-                while (v)
-                {
-                    EMIT(ctx, "static inline %s %s__%s() { return %s__%s_Tag; }\n", final_name,
-                         final_name, v->variant.name, final_name, v->variant.name);
-                    v = v->next;
-                }
-                EMIT(ctx, "\n");
-            }
-
-            else
             {
                 EMIT(ctx, "typedef enum { ");
                 v = node->enm.variants;
