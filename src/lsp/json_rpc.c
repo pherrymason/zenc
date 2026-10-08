@@ -159,7 +159,7 @@ void handle_request(const char *json_str)
             "{\"jsonrpc\":\"2.0\",\"id\":0,\"result\":{"
             "\"serverInfo\":{\"name\":\"ZenC LS\",\"version\": \"1.0.0\"},"
             "\"capabilities\":{\"textDocumentSync\":{\"openClose\":true,\"change\":1},"
-            "\"definitionProvider\":true,\"hoverProvider\":true,"
+            "\"definitionProvider\":true,\"declarationProvider\":true,\"hoverProvider\":true,"
             "\"referencesProvider\":true,\"documentSymbolProvider\":true,"
             "\"workspaceSymbolProvider\":true,"
             "\"renameProvider\":true,\"codeActionProvider\":true,"
@@ -229,7 +229,10 @@ void handle_request(const char *json_str)
             }
         }
     }
-    else if (strcmp(method, "textDocument/definition") == 0)
+    // Declarations and definitions are not told apart: go to declaration answers like go to
+    // definition.
+    else if (strcmp(method, "textDocument/definition") == 0 ||
+             strcmp(method, "textDocument/declaration") == 0)
     {
         char *uri = NULL;
         int line = 0, col = 0;
