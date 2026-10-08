@@ -2,6 +2,7 @@
 #include "../constants.h"
 
 #include "lsp_index.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -133,6 +134,90 @@ LSPRange *lsp_find_at(LSPIndex *idx, int line, int col)
     return best;
 }
 
+// The declaration as written, from the name up to the body: the parsed types are in their C
+// form (int32_t for int, double for f64) and method names are mangled (Rect__area).
+static int function_signature(ASTNode *node, char *out, size_t size)
+{
+    const char *p = node->token.start;
+    if (!p || node->token.kind != TOK_IDENT)
+    {
+        return 0;
+    }
+    size_t used = (size_t)snprintf(out, size, "%sfn ", node->func.is_async ? "async " : "");
+    int depth = 0;
+    int pending_space = 0;
+    char quote = 0;
+    for (; *p && used + 2 < size; p++)
+    {
+        if (quote)
+        {
+            if (*p == '\\' && p[1])
+            {
+                out[used++] = *p++;
+            }
+            else if (*p == quote)
+            {
+                quote = 0;
+            }
+            out[used++] = *p;
+            continue;
+        }
+        if (*p == '/' && p[1] == '/')
+        {
+            while (p[1] && p[1] != '\n')
+            {
+                p++;
+            }
+            pending_space = 1;
+            continue;
+        }
+        if (*p == '/' && p[1] == '*')
+        {
+            p += 2;
+            while (*p && !(*p == '*' && p[1] == '/'))
+            {
+                p++;
+            }
+            if (!*p)
+            {
+                break;
+            }
+            p++;
+            pending_space = 1;
+            continue;
+        }
+        if (depth == 0 && (*p == '{' || *p == ';'))
+        {
+            break;
+        }
+        if (isspace((unsigned char)*p))
+        {
+            pending_space = 1;
+            continue;
+        }
+        if (pending_space && out[used - 1] != '(' && *p != ')' && *p != ',')
+        {
+            out[used++] = ' ';
+        }
+        pending_space = 0;
+        if (*p == '(' || *p == '[')
+        {
+            depth++;
+        }
+        else if (*p == ')' || *p == ']')
+        {
+            depth--;
+        }
+        else if (*p == '"' || *p == '\'')
+        {
+            quote = *p;
+        }
+        out[used++] = *p;
+    }
+    out[used] = 0;
+    return 1;
+}
+
 // Walker.
 
 static void lsp_walk_node(LSPIndex *idx, ASTNode *node, int depth)
@@ -147,10 +232,13 @@ static void lsp_walk_node(LSPIndex *idx, ASTNode *node, int depth)
         // Definition logic.
         if (node->kind == NODE_FUNCTION)
         {
-            char hover[MAX_SHORT_MSG_LEN];
-            const char *name = node->func.name ? node->func.name : "unknown";
-            const char *ret = node->func.ret_type ? node->func.ret_type : "void";
-            snprintf(hover, sizeof(hover), "fn %s(...) -> %s", name, ret);
+            char hover[MAX_SHORT_MSG_LEN * 4];
+            if (!function_signature(node, hover, sizeof(hover)))
+            {
+                const char *name = node->func.name ? node->func.name : "unknown";
+                const char *ret = node->func.ret_type ? node->func.ret_type : "void";
+                snprintf(hover, sizeof(hover), "fn %s(...) -> %s", name, ret);
+            }
             lsp_index_add_def(idx, node->token, hover, node);
 
             // Recurse body.
