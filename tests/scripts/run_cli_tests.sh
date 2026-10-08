@@ -106,6 +106,27 @@ else
     check "zc transpile emits C source" 0
 fi
 
+# --- Installed layout ------------------------------------------------------
+
+# `make install` puts the binary in PREFIX/bin and the stdlib in
+# PREFIX/share/zenc. A copy of that layout in a temporary directory must find
+# its own stdlib, without -I and whatever ZEN_SHARE_DIR it was built with. It
+# runs from the temporary directory so that "./std" cannot be found instead.
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+prefix="$workdir/prefix"
+mkdir -p "$prefix/bin" "$prefix/share/zenc"
+cp "$ZC" "$prefix/bin/zc"
+ln -s "$repo_root/std" "$prefix/share/zenc/std"
+ln -s "$repo_root/std.zc" "$prefix/share/zenc/std.zc"
+printf 'import "std/vec.zc"\nfn main() {\n    let v = Vec<int>::new();\n    v.push(7);\n    println "installed-std-ok {v.len}";\n}\n' > "$workdir/uses_std.zc"
+out=$(cd "$workdir" && env -u ZC_ROOT "$prefix/bin/zc" run uses_std.zc -o uses_std 2>&1)
+if echo "$out" | grep -q "installed-std-ok 1"; then
+    check "installed zc finds its stdlib in PREFIX/share/zenc" 1
+else
+    check "installed zc finds its stdlib in PREFIX/share/zenc" 0
+    echo "$out" | head -5
+fi
+
 # --- Robustness: pathological inputs must exit cleanly (never crash) -------
 
 # A crash (signal) yields exit code > 128; a clean compile or a normal
