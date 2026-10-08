@@ -1140,7 +1140,8 @@ static ASTNode *parse_expr_prec_impl(ParserContext *ctx, Lexer *l, Precedence mi
                             {
                                 // Check if the inner type matches the struct
                                 char *inner_name = NULL;
-                                if (first_param->inner->kind == TYPE_STRUCT)
+                                if (first_param->inner->kind == TYPE_STRUCT ||
+                                    first_param->inner->kind == TYPE_ENUM)
                                 {
                                     inner_name = first_param->inner->name;
                                 }
