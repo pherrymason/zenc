@@ -49,6 +49,18 @@ ProjectFile *lsp_project_get_file(const char *uri);
 // Update a file (re-parse and re-index)
 void lsp_project_update_file(const char *uri, const char *src);
 
+// Remember the latest text of an open document (outside the arena) so a rebuild can
+// re-apply it.
+void lsp_project_track_document(const char *uri, const char *src);
+
+// Arena usage right after the last full build (workspace indexing or rebuild).
+size_t lsp_project_built_total(void);
+
+// Rewind the arena to `base`, restore the compiler state saved together with it and
+// rebuild the project from disk plus the tracked documents. Every pointer into the
+// arena taken after `base` is invalid afterwards.
+void lsp_project_rebuild(ZarenaMark base, const ZenCompiler *base_compiler);
+
 // Find definition globally
 typedef struct
 {
