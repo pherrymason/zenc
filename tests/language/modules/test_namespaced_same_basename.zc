@@ -1,0 +1,9 @@
+// language/modules: two modules with the same file name in different folders,
+// each imported with its own alias, keep their functions apart.
+import "./test_modules/facts/_helpers.zc" as facts_helpers;
+import "./test_modules/casefile/_helpers.zc" as casefile_helpers;
+
+test "same file name, different folders" {
+    assert(facts_helpers::describe() == 1, "facts helpers");
+    assert(casefile_helpers::describe() == 2, "casefile helpers");
+}
