@@ -186,6 +186,7 @@ ASTNode *parse_statement(ParserContext *ctx, Lexer *l)
         ASTNode *ct = ast_create(NODE_COMPTIME);
         ct->comptime.body = body;
         ct->comptime.generated = NULL;
+        ct->comptime.in_block = 1;
         return ct;
     }
     if (tk.kind == TOK_EXPECT)
@@ -847,6 +848,7 @@ ASTNode *parse_block(ParserContext *ctx, Lexer *l)
             ASTNode *ct = ast_create(NODE_COMPTIME);
             ct->comptime.body = body;
             ct->comptime.generated = NULL;
+            ct->comptime.in_block = 1;
             if (!head)
             {
                 head = ct;
