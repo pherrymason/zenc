@@ -735,6 +735,7 @@ struct ASTNode
         {
             ASTNode *body;      ///< The comptime block body (parsed statements).
             ASTNode *generated; ///< Generated AST nodes (from yield() output).
+            int in_block;       ///< Inside a function body: the output is statements.
         } comptime;
     };
 };
