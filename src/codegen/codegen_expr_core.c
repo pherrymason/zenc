@@ -228,24 +228,9 @@ static void codegen_var_expr(ParserContext *ctx, ASTNode *node)
         // NODE_EXPR_CALL will add the ().
         if (!g_emitting_callee)
         {
-            EnumVariantReg *ev = find_enum_variant(ctx, method_name);
-            if (ev)
+            if (find_enum_variant_of(ctx, mangled_type, method_name))
             {
-                const char *clean_ev = ev->enum_name;
-                if (strncmp(clean_ev, "struct ", 7) == 0)
-                {
-                    clean_ev += 7;
-                }
-                const char *clean_mangled = mangled_type;
-                if (strncmp(clean_mangled, "struct ", 7) == 0)
-                {
-                    clean_mangled += 7;
-                }
-
-                if (strcmp(clean_ev, clean_mangled) == 0)
-                {
-                    EMIT(ctx, "()");
-                }
+                EMIT(ctx, "()");
             }
         }
 
