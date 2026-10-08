@@ -2,6 +2,7 @@
 #include "lsp_project.h"
 #include "../utils/utils.h"
 #include "../constants.h"
+#include "../platform/os.h"
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +10,9 @@
 #include <sys/stat.h>
 
 LSPProject *g_project = NULL;
+
+// Files parsed by the current workspace indexing, for its summary.
+static int g_indexed_file_count = 0;
 
 static void scan_dir(const char *dir_path);
 void lsp_default_on_error(void *data, Token t, const char *msg);
@@ -32,6 +36,7 @@ void lsp_project_init(const char *root_path)
 
     g_project = xcalloc(1, sizeof(LSPProject));
     g_project->root_path = xstrdup(root_path);
+    fprintf(stderr, "zls: project root: %s\n", root_path);
 
     // Create a persistent global context
     g_project->ctx = xcalloc(1, sizeof(ParserContext));
@@ -86,9 +91,13 @@ void lsp_project_index_workspace(void)
     }
 
     // Scan workspace
+    double start = z_get_monotonic_time();
+    g_indexed_file_count = 0;
     g_is_indexing = 1;
     scan_dir(g_project->root_path);
     g_is_indexing = 0;
+    fprintf(stderr, "zls: indexed %d files in %.0f ms\n", g_indexed_file_count,
+            (z_get_monotonic_time() - start) * 1000.0);
 }
 
 // Default error handler for indexing phase
@@ -128,6 +137,7 @@ static void scan_file(const char *path)
     }
 
     lsp_project_update_file(uri, src);
+    g_indexed_file_count++;
 
     // Free source after update
     zfree(src);
