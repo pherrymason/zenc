@@ -944,18 +944,53 @@ void codegen_c_program(ParserContext *ctx, ASTNode *node)
             k = k->next;
         }
 
+        // Tuple structs registered for tuple types and multi-value payloads take
+        // part in the ordering: a tuple holding a struct by value must come after
+        // it, and an enum carrying a tuple after the tuple.
+        TupleType *tup = ctx->used_tuples;
+        while (tup)
+        {
+            char *clean_sig = sanitize_mangled_name(tup->sig);
+            size_t name_len = strlen(clean_sig) + sizeof("Tuple__");
+            char *tuple_name = xmalloc(name_len);
+            snprintf(tuple_name, name_len, "Tuple__%s", clean_sig);
+            zfree(clean_sig);
+            ASTNode *def = find_struct_def(ctx, tuple_name);
+            zfree(tuple_name);
+            if (def && def->kind == NODE_STRUCT)
+            {
+                ASTNode *copy = xmalloc(sizeof(ASTNode));
+                *copy = *def;
+                copy->next = NULL;
+                if (!merged)
+                {
+                    merged = copy;
+                    merged_tail = copy;
+                }
+                else
+                {
+                    merged_tail->next = copy;
+                    merged_tail = copy;
+                }
+            }
+            tup = tup->next;
+        }
+
         // Topologically sort.
         ASTNode *sorted = topo_sort_structs(ctx, merged);
 
         print_type_defs(ctx, sorted);
-        if (!ctx->config->use_cpp)
-        {
-            emit_enum_protos(ctx, sorted);
-        }
         emit_global_aliases(ctx);
 
         visited = NULL;
         emit_type_aliases(ctx, kids, &visited);
+
+        // Tagged-enum constructor prototypes name their payload types: they go
+        // after the payload-less enums (print_type_defs) and the aliases.
+        if (!ctx->config->use_cpp)
+        {
+            emit_enum_protos(ctx, sorted);
+        }
 
         visited = NULL;
         emit_trait_defs(ctx, kids, &visited);
