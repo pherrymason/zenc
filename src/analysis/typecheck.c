@@ -941,9 +941,23 @@ void check_node(TypeChecker *tc, ASTNode *node, int depth)
         // Parse generated source code
         if (output[0])
         {
-            Lexer out_l;
-            lexer_init(&out_l, output, tc->pctx->config, tc->pctx->current_filename);
-            node->comptime.generated = parse_program_nodes(tc->pctx, &out_l);
+            if (node->comptime.in_block)
+            {
+                // Inside a function the output is statements, not declarations.
+                size_t len = strlen(output);
+                char *wrapped = xmalloc(len + 5);
+                snprintf(wrapped, len + 5, "{ %s }", output);
+                Lexer out_l;
+                lexer_init(&out_l, wrapped, tc->pctx->config, tc->pctx->current_filename);
+                ASTNode *block = parse_block(tc->pctx, &out_l);
+                node->comptime.generated = block ? block->block.statements : NULL;
+            }
+            else
+            {
+                Lexer out_l;
+                lexer_init(&out_l, output, tc->pctx->config, tc->pctx->current_filename);
+                node->comptime.generated = parse_program_nodes(tc->pctx, &out_l);
+            }
 
             // Type-check generated nodes
             ASTNode *gen = node->comptime.generated;
