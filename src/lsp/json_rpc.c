@@ -446,6 +446,26 @@ void handle_request(const char *json_str)
         // For notification, no ID. Just exit.
         exit(0);
     }
+    else if (id_item)
+    {
+        // A request the server does not implement still needs an answer, or the client waits
+        // for it forever. Unknown notifications (no id) are ignored.
+        cJSON *response = cJSON_CreateObject();
+        cJSON_AddStringToObject(response, "jsonrpc", "2.0");
+        cJSON_AddItemToObject(response, "id", cJSON_Duplicate(id_item, 1));
+        cJSON *error = cJSON_CreateObject();
+        cJSON_AddNumberToObject(error, "code", -32601); // MethodNotFound
+        char message[256];
+        snprintf(message, sizeof(message), "Method not found: %s", method);
+        cJSON_AddStringToObject(error, "message", message);
+        cJSON_AddItemToObject(response, "error", error);
+
+        char *str = cJSON_PrintUnformatted(response);
+        fprintf(stdout, "Content-Length: %zu\r\n\r\n%s", strlen(str), str);
+        fflush(stdout);
+        zfree(str);
+        cJSON_Delete(response);
+    }
 
     cJSON_Delete(json);
 }
