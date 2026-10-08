@@ -114,6 +114,84 @@ static CValue val_string(const char *s)
     return v;
 }
 
+// A string literal's string_val holds its text as written in C (escapes
+// included), ready for codegen. At compile time we need the characters
+// themselves: `code("];\n")` must yield a newline, not `\` and `n`.
+static char *unescape_c_string(const char *s)
+{
+    char *out = xmalloc(strlen(s) + 1);
+    char *p = out;
+    while (*s)
+    {
+        if (*s != '\\' || !s[1])
+        {
+            *p++ = *s++;
+            continue;
+        }
+        s++;
+        char c = *s++;
+        switch (c)
+        {
+        case 'n':
+            *p++ = '\n';
+            break;
+        case 't':
+            *p++ = '\t';
+            break;
+        case 'r':
+            *p++ = '\r';
+            break;
+        case 'a':
+            *p++ = '\a';
+            break;
+        case 'b':
+            *p++ = '\b';
+            break;
+        case 'f':
+            *p++ = '\f';
+            break;
+        case 'v':
+            *p++ = '\v';
+            break;
+        case 'e':
+            *p++ = 27;
+            break;
+        case 'x':
+        {
+            unsigned int val = 0;
+            int digits = 0;
+            while (digits < 2 && ((*s >= '0' && *s <= '9') || (*s >= 'a' && *s <= 'f') ||
+                                  (*s >= 'A' && *s <= 'F')))
+            {
+                val = (val << 4) | (unsigned int)(*s <= '9' ? *s - '0' : (*s | 0x20) - 'a' + 10);
+                s++;
+                digits++;
+            }
+            *p++ = (char)val;
+            break;
+        }
+        default:
+            if (c >= '0' && c <= '7')
+            {
+                unsigned int val = (unsigned int)(c - '0');
+                for (int k = 0; k < 2 && *s >= '0' && *s <= '7'; k++)
+                {
+                    val = (val << 3) | (unsigned int)(*s++ - '0');
+                }
+                *p++ = (char)val;
+            }
+            else
+            {
+                // \\, \", \' and anything unknown: the character itself.
+                *p++ = c;
+            }
+            break;
+        }
+    }
+    *p = '\0';
+    return out;
+}
+
 static void val_free(CValue *v)
 {
     if (!v)
@@ -222,6 +300,9 @@ static CValue eval_literal(CInterp *ci, ASTNode *node)
         v.as.i = (int64_t)node->literal.float_val;
         break;
     case LITERAL_STRING:
+        v.kind = VAL_STRING;
+        v.as.s = unescape_c_string(node->literal.string_val ? node->literal.string_val : "");
+        break;
     case LITERAL_RAW_STRING:
         v = val_string(node->literal.string_val ? node->literal.string_val : "");
         break;
