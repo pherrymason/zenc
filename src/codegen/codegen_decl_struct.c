@@ -12,6 +12,52 @@
 #include "../platform/misra.h"
 #include "codegen_internal.h"
 
+int enum_has_payload(ASTNode *node)
+{
+    ASTNode *v = node->enm.variants;
+    while (v)
+    {
+        if (v->variant.payload)
+        {
+            return 1;
+        }
+        v = v->next;
+    }
+    return 0;
+}
+
+// A payload-less enum: a C enum plus one constructor per variant. It depends on
+// no other type, so it is emitted before anything that could use it (tagged
+// enum constructors, generic instantiations such as Vec<Kind>, aliases...).
+void emit_simple_enum(ParserContext *ctx, ASTNode *node)
+{
+    const char *final_name = node->link_name ? node->link_name : node->enm.name;
+    if (node->cfg_condition)
+    {
+        EMIT(ctx, "#if %s\n", node->cfg_condition);
+    }
+    EMIT(ctx, "typedef enum { ");
+    ASTNode *v = node->enm.variants;
+    while (v)
+    {
+        EMIT(ctx, "%s__%s_Tag, ", final_name, v->variant.name);
+        v = v->next;
+    }
+    EMIT(ctx, "} %s;\n\n", final_name);
+    v = node->enm.variants;
+    while (v)
+    {
+        EMIT(ctx, "static inline %s %s__%s() { return %s__%s_Tag; }\n", final_name, final_name,
+             v->variant.name, final_name, v->variant.name);
+        v = v->next;
+    }
+    EMIT(ctx, "\n");
+    if (node->cfg_condition)
+    {
+        EMIT(ctx, "#endif\n");
+    }
+}
+
 // Emit struct and enum definitions.
 static void emit_struct_defs_internal(ParserContext *ctx, ASTNode *node, VisitedModules **visited,
                                       int depth, int filter_type)
@@ -207,159 +253,129 @@ static void emit_struct_defs_internal(ParserContext *ctx, ASTNode *node, Visited
         }
         else if (node->kind == NODE_ENUM)
         {
+            // Payload-less enums are emitted up front by print_type_defs: they
+            // depend on nothing and everything else may use them.
+            if (!enum_has_payload(node))
+            {
+                node = node->next;
+                continue;
+            }
+
             const char *final_name = node->link_name ? node->link_name : node->enm.name;
             if (node->cfg_condition)
             {
                 EMIT(ctx, "#if %s\n", node->cfg_condition);
             }
 
-            int has_payload = 0;
+            EMIT(ctx, "typedef enum { ");
+            v = node->enm.variants;
+            while (v)
+            {
+                EMIT(ctx, "%s__%s_Tag, ", final_name, v->variant.name);
+                v = v->next;
+            }
+            EMIT(ctx, "} %s_Tag;\n", final_name);
+            EMIT(ctx, "struct %s { %s_Tag tag; union { ", final_name, final_name);
             v = node->enm.variants;
             while (v)
             {
                 if (v->variant.payload)
                 {
-                    has_payload = 1;
-                    break;
+                    char *tstr = type_to_c_string(v->variant.payload);
+                    EMIT(ctx, "%s %s; ", tstr, v->variant.name);
+                    zfree(tstr);
                 }
                 v = v->next;
             }
+            EMIT(ctx, "} data; };\n\n");
 
-            if (!has_payload)
+            v = node->enm.variants;
+            while (v)
             {
-                EMIT(ctx, "typedef enum { ");
-                v = node->enm.variants;
-                while (v)
+                if (v->variant.payload)
                 {
-                    EMIT(ctx, "%s__%s_Tag, ", final_name, v->variant.name);
-                    v = v->next;
-                }
-                EMIT(ctx, "} %s;\n\n", final_name);
-
-                v = node->enm.variants;
-                while (v)
-                {
-                    EMIT(ctx, "static inline %s %s__%s() { return %s__%s_Tag; }\n", final_name,
-                         final_name, v->variant.name, final_name, v->variant.name);
-                    v = v->next;
-                }
-                EMIT(ctx, "\n");
-            }
-
-            else
-            {
-                EMIT(ctx, "typedef enum { ");
-                v = node->enm.variants;
-                while (v)
-                {
-                    EMIT(ctx, "%s__%s_Tag, ", final_name, v->variant.name);
-                    v = v->next;
-                }
-                EMIT(ctx, "} %s_Tag;\n", final_name);
-                EMIT(ctx, "struct %s { %s_Tag tag; union { ", final_name, final_name);
-                v = node->enm.variants;
-                while (v)
-                {
-                    if (v->variant.payload)
+                    Type *pt = v->variant.payload;
+                    char *tstr = type_to_c_string(pt);
+                    ASTNode *tuple_def = NULL;
+                    if (pt->kind == TYPE_STRUCT && strncmp(pt->name, "Tuple__", 7) == 0)
                     {
-                        char *tstr = type_to_c_string(v->variant.payload);
-                        EMIT(ctx, "%s %s; ", tstr, v->variant.name);
-                        zfree(tstr);
+                        tuple_def = find_struct_def(ctx, pt->name);
                     }
-                    v = v->next;
-                }
-                EMIT(ctx, "} data; };\n\n");
 
-                v = node->enm.variants;
-                while (v)
-                {
-                    if (v->variant.payload)
+                    if (tuple_def)
                     {
-                        Type *pt = v->variant.payload;
-                        char *tstr = type_to_c_string(pt);
-                        ASTNode *tuple_def = NULL;
-                        if (pt->kind == TYPE_STRUCT && strncmp(pt->name, "Tuple__", 7) == 0)
+                        EMIT(ctx, "%s %s__%s(", final_name, final_name, v->variant.name);
+                        ASTNode *f = tuple_def->strct.fields;
+                        int i = 0;
+                        while (f)
                         {
-                            tuple_def = find_struct_def(ctx, pt->name);
+                            char *at = f->field.type;
+                            EMIT(ctx, "%s _%d%s", at, i, (f->next) ? ", " : "");
+                            f = f->next;
+                            i++;
                         }
-
-                        if (tuple_def)
+                        EMIT(ctx, ") {\n");
+                        emitter_indent(&ctx->cg.emitter);
+                        if (ctx->config->use_cpp)
                         {
-                            EMIT(ctx, "%s %s__%s(", final_name, final_name, v->variant.name);
-                            ASTNode *f = tuple_def->strct.fields;
-                            int i = 0;
-                            while (f)
+                            EMIT(ctx, "%s _res = {}; _res.tag = %s__%s_Tag; ", final_name,
+                                 final_name, v->variant.name);
+                            for (int j = 0; j < i; j++)
                             {
-                                char *at = f->field.type;
-                                EMIT(ctx, "%s _%d%s", at, i, (f->next) ? ", " : "");
-                                f = f->next;
-                                i++;
+                                EMIT(ctx, "_res.data.%s.v%d = _%d; ", v->variant.name, j, j);
                             }
-                            EMIT(ctx, ") {\n");
-                            emitter_indent(&ctx->cg.emitter);
-                            if (ctx->config->use_cpp)
-                            {
-                                EMIT(ctx, "%s _res = {}; _res.tag = %s__%s_Tag; ", final_name,
-                                     final_name, v->variant.name);
-                                for (int j = 0; j < i; j++)
-                                {
-                                    EMIT(ctx, "_res.data.%s.v%d = _%d; ", v->variant.name, j, j);
-                                }
-                                emitter_dedent(&ctx->cg.emitter);
-                                EMIT(ctx, "return _res; }\n");
-                            }
-                            else
-                            {
-                                EMIT(ctx, "return (%s){.tag=%s__%s_Tag, .data.%s={", final_name,
-                                     final_name, v->variant.name, v->variant.name);
-                                for (int j = 0; j < i; j++)
-                                {
-                                    EMIT(ctx, ".v%d=_%d%s", j, j, (j == i - 1) ? "" : ", ");
-                                }
-                                emitter_dedent(&ctx->cg.emitter);
-                                EMIT(ctx, "}}; }\n");
-                            }
+                            emitter_dedent(&ctx->cg.emitter);
+                            EMIT(ctx, "return _res; }\n");
                         }
                         else
                         {
-                            if (ctx->config->use_cpp)
+                            EMIT(ctx, "return (%s){.tag=%s__%s_Tag, .data.%s={", final_name,
+                                 final_name, v->variant.name, v->variant.name);
+                            for (int j = 0; j < i; j++)
                             {
-                                EMIT(ctx,
-                                     "%s %s__%s(%s v) { %s _res = {}; _res.tag=%s__%s_Tag; "
-                                     "_res.data.%s=v; return _res; }\n",
-                                     final_name, final_name, v->variant.name, tstr, final_name,
-                                     final_name, v->variant.name, v->variant.name);
+                                EMIT(ctx, ".v%d=_%d%s", j, j, (j == i - 1) ? "" : ", ");
                             }
-                            else
-                            {
-                                EMIT(ctx,
-                                     "%s %s__%s(%s v) { return (%s){.tag=%s__%s_Tag, .data.%s=v}; "
-                                     "}\n",
-                                     final_name, final_name, v->variant.name, tstr, final_name,
-                                     final_name, v->variant.name, v->variant.name);
-                            }
+                            emitter_dedent(&ctx->cg.emitter);
+                            EMIT(ctx, "}}; }\n");
                         }
-                        zfree(tstr);
                     }
                     else
                     {
                         if (ctx->config->use_cpp)
                         {
-                            EMIT(
-                                ctx,
-                                "%s %s__%s() { %s _res = {}; _res.tag=%s__%s_Tag; return _res; }\n",
-                                final_name, final_name, v->variant.name, final_name, final_name,
-                                v->variant.name);
+                            EMIT(ctx,
+                                 "%s %s__%s(%s v) { %s _res = {}; _res.tag=%s__%s_Tag; "
+                                 "_res.data.%s=v; return _res; }\n",
+                                 final_name, final_name, v->variant.name, tstr, final_name,
+                                 final_name, v->variant.name, v->variant.name);
                         }
                         else
                         {
-                            EMIT(ctx, "%s %s__%s() { return (%s){.tag=%s__%s_Tag}; }\n", final_name,
-                                 final_name, v->variant.name, final_name, final_name,
-                                 v->variant.name);
+                            EMIT(ctx,
+                                 "%s %s__%s(%s v) { return (%s){.tag=%s__%s_Tag, .data.%s=v}; "
+                                 "}\n",
+                                 final_name, final_name, v->variant.name, tstr, final_name,
+                                 final_name, v->variant.name, v->variant.name);
                         }
                     }
-                    v = v->next;
+                    zfree(tstr);
                 }
+                else
+                {
+                    if (ctx->config->use_cpp)
+                    {
+                        EMIT(ctx,
+                             "%s %s__%s() { %s _res = {}; _res.tag=%s__%s_Tag; return _res; }\n",
+                             final_name, final_name, v->variant.name, final_name, final_name,
+                             v->variant.name);
+                    }
+                    else
+                    {
+                        EMIT(ctx, "%s %s__%s() { return (%s){.tag=%s__%s_Tag}; }\n", final_name,
+                             final_name, v->variant.name, final_name, final_name, v->variant.name);
+                    }
+                }
+                v = v->next;
             }
             if (node->cfg_condition)
             {
