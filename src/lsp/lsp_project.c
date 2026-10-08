@@ -104,17 +104,13 @@ void lsp_project_init(const char *root_path)
     // Ensure we don't overflow the include_paths array (limit is 64)
     zvec_push_Str(&cfg->include_paths, xstrdup(root_path));
 
-    // In LSP mode, the workspace root should also be considered the root path for stdlib
-    // resolution
+    // A workspace that holds a stdlib (the compiler's own tree) resolves it through these
+    // include paths. cfg->root_path stays where the compiler found its own stdlib: replacing it
+    // with the workspace root left any other project without one.
     if (root_path)
     {
-        cfg->root_path = xstrdup(root_path);
-    }
-
-    if (cfg->root_path)
-    {
         char std_path[MAX_PATH_LEN];
-        snprintf(std_path, sizeof(std_path), "%s/std", cfg->root_path);
+        snprintf(std_path, sizeof(std_path), "%s/std", root_path);
         zvec_push_Str(&cfg->include_paths, xstrdup(std_path));
     }
 
