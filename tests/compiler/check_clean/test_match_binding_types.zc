@@ -1,0 +1,49 @@
+// compiler/check_clean: `zc check` must accept this file with no errors.
+// Match bindings get the type of the variant payload: a single value, a value
+// behind `ref`, or one field each when the payload has several values.
+enum Value {
+    Nothing,
+    Hour(u8),
+    Point(int, int),
+    Label(string),
+}
+
+fn hour_of(value: Value) -> u8 {
+    match value {
+        Value::Hour(hour) => { return hour; },
+        _ => { return 0; },
+    }
+    return 0;
+}
+
+fn sum_of(value: Value) -> int {
+    match value {
+        Value::Point(x, y) => { return x + y; },
+        _ => { return 0; },
+    }
+    return 0;
+}
+
+fn label_of(value: Value) -> string {
+    match value {
+        Value::Label(text) => { return text; },
+        _ => { return ""; },
+    }
+    return "";
+}
+
+fn bump(value: Value*) {
+    match *value {
+        Value::Hour(ref hour) => { *hour = *hour + 1; },
+        _ => {},
+    }
+}
+
+fn main() {
+    let value = Value::Hour(2);
+    bump(&value);
+    let hour = hour_of(value);
+    let sum = sum_of(Value::Point(3, 4));
+    let label = label_of(Value::Label("x"));
+    println "{hour} {sum} {label}";
+}
