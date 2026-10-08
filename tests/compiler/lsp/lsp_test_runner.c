@@ -480,6 +480,34 @@ static void test_code_action()
     free(resp);
 }
 
+static void on_unanswered_request(int signal_number)
+{
+    (void)signal_number;
+    const char message[] = "TEST FAIL: no answer to an unknown request\n";
+    write(STDERR_FILENO, message, sizeof(message) - 1);
+    _exit(1);
+}
+
+static void test_unknown_method(void)
+{
+    printf("Running test_unknown_method...\n");
+    // An unknown notification gets no answer; the unknown request after it gets an error
+    // instead of leaving the client waiting (the alarm turns a hang into a failure).
+    signal(SIGALRM, on_unanswered_request);
+    alarm(5);
+    send_request("{\"jsonrpc\": \"2.0\", \"method\": \"$/unknownNotification\", \"params\": {}}");
+    send_request("{\"jsonrpc\": \"2.0\", \"id\": 900, \"method\": \"textDocument/unknownRequest\", "
+                 "\"params\": {}}");
+    char *response = wait_for_response(900);
+    alarm(0);
+    if (!response || !strstr(response, "-32601"))
+    {
+        fail("An unknown request must get a MethodNotFound error");
+    }
+    free(response);
+    printf("PASS: test_unknown_method\n");
+}
+
 static void test_shutdown()
 {
     printf("Running test_shutdown...\n");
@@ -923,6 +951,7 @@ int main()
     test_empty_source();
     test_did_change();
     test_code_action();
+    test_unknown_method();
     test_shutdown();
     send_request("{\"jsonrpc\": \"2.0\", \"method\": \"exit\", \"params\": {}}");
     waitpid(child_pid, NULL, 0);
