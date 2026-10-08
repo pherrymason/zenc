@@ -297,13 +297,40 @@ ASTNode *parse_struct(ParserContext *ctx, Lexer *l, int is_union, int is_opaque,
         name = prefixed_name;
     }
 
-    // Generic templates are registered separately and may share the base name.
-    if (gp_count == 0 && !ctx->config->mode_lsp)
+    // Generic templates are registered separately, so a concrete struct and a
+    // generic one with the same name (a user `struct Box` and the std's
+    // `Box<T>`) were silently merged: the generic's impls, Drop included,
+    // applied to the concrete struct.
+    if (!ctx->config->mode_lsp)
     {
-        ASTNode *existing = find_concrete_struct_def(ctx, name);
-        if (existing)
+        if (gp_count == 0)
         {
-            zerror_at(name_token, "Redefinition of %s '%s'", is_union ? "union" : "struct", name);
+            ASTNode *existing = find_concrete_struct_def(ctx, name);
+            if (existing)
+            {
+                zerror_at(name_token, "Redefinition of %s '%s'", is_union ? "union" : "struct",
+                          name);
+            }
+        }
+        GenericTemplate *tpl = ctx->templates;
+        while (tpl && strcmp(tpl->name, name) != 0)
+        {
+            tpl = tpl->next;
+        }
+        ASTNode *concrete = gp_count > 0 ? find_concrete_struct_def(ctx, name) : NULL;
+        if ((gp_count == 0 && tpl) || concrete)
+        {
+            ASTNode *other = tpl ? tpl->struct_node : concrete;
+            const char *where =
+                (other && other->strct.defined_in_file) ? other->strct.defined_in_file : "?";
+            char msg[MAX_SHORT_MSG_LEN];
+            snprintf(msg, sizeof(msg), "Struct '%s' clashes with the %s struct '%s' from %s", name,
+                     gp_count == 0 ? "generic" : "concrete", name, where);
+            const char *hints[] = {"A generic and a concrete struct cannot share a name",
+                                   "Rename one of them (std types such as Box, Vec, Option, "
+                                   "Map or String keep their names)",
+                                   NULL};
+            zpanic_with_hints(name_token, msg, hints);
         }
     }
 

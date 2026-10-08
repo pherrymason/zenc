@@ -1,0 +1,11 @@
+// EXPECT: FAIL
+// compiler/diagnostics: a concrete struct cannot take the name of a generic one
+// (here std's Box<T>, imported through std/option.zc): their impls would mix.
+import "std/option.zc"
+
+struct Box { id: int; }
+
+fn main() {
+    let b = Box { id: 1 };
+    println "{b.id}";
+}
