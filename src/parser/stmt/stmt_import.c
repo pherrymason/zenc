@@ -656,7 +656,7 @@ ASTNode *parse_import(ParserContext *ctx, Lexer *l, int is_re_export)
     char *module_base_name = NULL;
     if (is_selective)
     {
-        module_base_name = extract_module_name(fn);
+        module_base_name = module_prefix_for(ctx, fn);
         for (size_t i = 0; i < symbols.length; i++)
         {
             register_selective_import(ctx, symbols.data[i], aliases.data[i], module_base_name);
@@ -700,7 +700,7 @@ ASTNode *parse_import(ParserContext *ctx, Lexer *l, int is_re_export)
 
                 if (!zmap_get(&ctx->imports.modules, alias))
                 {
-                    char *mod_base = extract_module_name(fn);
+                    char *mod_base = module_prefix_for(ctx, fn);
                     Module *m = xmalloc(sizeof(Module));
                     m->alias = xstrdup(alias);
                     m->path = xstrdup(fn);
@@ -773,12 +773,12 @@ ASTNode *parse_import(ParserContext *ctx, Lexer *l, int is_re_export)
 
     if (alias)
     {
-        temp_module_prefix = extract_module_name(fn);
+        temp_module_prefix = module_prefix_for(ctx, fn);
         ctx->imports.current_module_prefix = temp_module_prefix;
     }
     else if (is_selective || is_wildcard)
     {
-        temp_module_prefix = extract_module_name(fn);
+        temp_module_prefix = module_prefix_for(ctx, fn);
         ctx->imports.current_module_prefix = temp_module_prefix;
     }
     else
@@ -801,7 +801,7 @@ ASTNode *parse_import(ParserContext *ctx, Lexer *l, int is_re_export)
 
     if (is_re_export && alias && prev_module_prefix)
     {
-        char *prop_base = extract_module_name(fn);
+        char *prop_base = module_prefix_for(ctx, fn);
         re_export_propagated(ctx, alias, prev_module_prefix, prop_base);
         zfree(prop_base);
     }
