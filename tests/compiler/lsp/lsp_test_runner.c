@@ -255,6 +255,51 @@ static void test_hover()
     free(resp);
 }
 
+static void expect_signature_hover(int id, int line, int character, const char *expected)
+{
+    char req[512];
+    snprintf(req, sizeof(req),
+             "{\"jsonrpc\": \"2.0\", \"id\": %d, \"method\": \"textDocument/hover\", "
+             "\"params\": {\"textDocument\": {\"uri\": \"file:///tmp/test_hover_sig.zc\"}, "
+             "\"position\": {\"line\": %d, \"character\": %d}}}",
+             id, line, character);
+    send_request(req);
+    char *resp = wait_for_response(id);
+    if (!resp || !strstr(resp, expected))
+    {
+        printf("Expected hover \"%s\", got: %s\n", expected, resp ? resp : "(no response)");
+        fail("Hover must show the function signature as written");
+    }
+    free(resp);
+}
+
+static void test_hover_signature(void)
+{
+    printf("Running test_hover_signature...\n");
+    // Line 0: struct Box { v: int; }
+    // Line 1: impl Box {
+    // Line 2:     fn get(self) -> int { return self.v; }
+    // Line 3: }
+    // Line 4: fn scale(value: int,
+    // Line 5:     factor: f64) -> int
+    // Line 6: {
+    // Line 7:     return value;
+    // Line 8: }
+    send_request("{\"jsonrpc\": \"2.0\", \"method\": \"textDocument/didOpen\", \"params\": "
+                 "{\"textDocument\": {\"uri\": \"file:///tmp/test_hover_sig.zc\", "
+                 "\"languageId\": \"zenc\", \"version\": 1, \"text\": "
+                 "\"struct Box { v: int; }\\nimpl Box {\\n    fn get(self) -> int { return "
+                 "self.v; }\\n}\\nfn scale(value: int,\\n    factor: f64) -> int\\n{\\n    "
+                 "return value;\\n}\\n\"}}}");
+    usleep(100000);
+
+    // Zen C type names, not the C ones (int32_t, double), on one line.
+    expect_signature_hover(4, 4, 3, "fn scale(value: int, factor: f64) -> int");
+    // The method's own name, not the mangled one (Box__get).
+    expect_signature_hover(5, 2, 7, "fn get(self) -> int");
+    printf("PASS: test_hover_signature\n");
+}
+
 static void test_definition_partial_code()
 {
     printf("Running test_definition_partial_code...\n");
@@ -907,6 +952,7 @@ int main()
     start_lsp_server();
     test_initialize();
     test_hover();
+    test_hover_signature();
     test_completion();
     test_struct_completion();
     test_diagnostics();
