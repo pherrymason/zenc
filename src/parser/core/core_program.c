@@ -281,6 +281,16 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
                         char *name = token_strdup(sym);
                         register_extern_symbol(ctx, name);
 
+                        // extern let NAME: T; -> a C global: typed for the
+                        // front-end, nothing emitted (C already declares it).
+                        if (lexer_peek(l).kind == TOK_COLON)
+                        {
+                            lexer_next(l);
+                            Type *type_obj = parse_type_formal(ctx, l);
+                            add_symbol_with_token(ctx, name, type_to_string(type_obj), type_obj,
+                                                  sym, attrs.is_export);
+                        }
+
                         Token next = lexer_peek(l);
                         if (next.kind == TOK_COMMA)
                         {
@@ -292,10 +302,12 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
                         }
                     }
 
-                    if (lexer_peek(l).kind == TOK_SEMICOLON)
+                    if (lexer_peek(l).kind != TOK_SEMICOLON)
                     {
-                        lexer_next(l);
+                        zpanic_at(lexer_peek(l), "Expected ';' after extern declaration");
+                        return NULL;
                     }
+                    lexer_next(l);
                     continue;
                 }
             }
