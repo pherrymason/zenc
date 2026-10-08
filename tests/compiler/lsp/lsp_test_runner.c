@@ -480,6 +480,93 @@ static void test_code_action()
     free(resp);
 }
 
+// The symbols named like `query` must include `expected` with that kind (and container).
+static void expect_workspace_symbol(int id, const char *query, const char *expected, int kind,
+                                    const char *container)
+{
+    char json[256];
+    snprintf(json, sizeof(json),
+             "{\"jsonrpc\": \"2.0\", \"id\": %d, \"method\": \"workspace/symbol\", "
+             "\"params\": {\"query\": \"%s\"}}",
+             id, query);
+    send_request(json);
+    char *response = wait_for_response(id);
+    cJSON *parsed = response ? cJSON_Parse(response) : NULL;
+    free(response);
+    cJSON *results = cJSON_GetObjectItem(parsed, "result");
+    int found = 0;
+    for (int i = 0; i < cJSON_GetArraySize(results); i++)
+    {
+        cJSON *item = cJSON_GetArrayItem(results, i);
+        cJSON *name = cJSON_GetObjectItem(item, "name");
+        cJSON *item_kind = cJSON_GetObjectItem(item, "kind");
+        cJSON *item_container = cJSON_GetObjectItem(item, "containerName");
+        cJSON *uri = cJSON_GetObjectItem(cJSON_GetObjectItem(item, "location"), "uri");
+        if (cJSON_IsString(name) && strcmp(name->valuestring, expected) == 0 &&
+            cJSON_IsNumber(item_kind) && item_kind->valueint == kind && cJSON_IsString(uri) &&
+            strstr(uri->valuestring, "test_ws_symbol.zc") &&
+            (!container || (cJSON_IsString(item_container) &&
+                            strcmp(item_container->valuestring, container) == 0)))
+        {
+            found = 1;
+        }
+    }
+    if (!found)
+    {
+        printf("workspace/symbol '%s' without %s: %s\n", query, expected,
+               results ? cJSON_PrintUnformatted(results) : "no result");
+        fail("Missing workspace symbol");
+    }
+    cJSON_Delete(parsed);
+}
+
+static void test_workspace_symbol(void)
+{
+    printf("Running test_workspace_symbol...\n");
+    const char *code = "struct WsShape {\n"
+                       "    w: int;\n"
+                       "}\n"
+                       "\n"
+                       "impl WsShape {\n"
+                       "    fn ws_area(self) -> int {\n"
+                       "        return self.w;\n"
+                       "    }\n"
+                       "}\n"
+                       "\n"
+                       "trait WsDrawable {\n"
+                       "    fn ws_draw(self);\n"
+                       "}\n"
+                       "\n"
+                       "fn ws_symbol_target() -> int {\n"
+                       "    return 1;\n"
+                       "}\n";
+    int fd = open("/tmp/test_ws_symbol.zc", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd >= 0)
+    {
+        write(fd, code, strlen(code));
+        close(fd);
+    }
+    cJSON *message = cJSON_CreateObject();
+    cJSON_AddStringToObject(message, "jsonrpc", "2.0");
+    cJSON_AddStringToObject(message, "method", "textDocument/didOpen");
+    cJSON *document =
+        cJSON_AddObjectToObject(cJSON_AddObjectToObject(message, "params"), "textDocument");
+    cJSON_AddStringToObject(document, "uri", "file:///tmp/test_ws_symbol.zc");
+    cJSON_AddStringToObject(document, "languageId", "zenc");
+    cJSON_AddNumberToObject(document, "version", 1);
+    cJSON_AddStringToObject(document, "text", code);
+    char *json = cJSON_PrintUnformatted(message);
+    send_request(json);
+    free(json);
+    cJSON_Delete(message);
+
+    expect_workspace_symbol(910, "ws_symbol", "ws_symbol_target", 12, NULL);
+    expect_workspace_symbol(911, "WSSHAPE", "WsShape", 23, NULL);
+    expect_workspace_symbol(912, "wsarea", "ws_area", 6, "WsShape");
+    expect_workspace_symbol(913, "drawable", "WsDrawable", 11, NULL);
+    printf("PASS: test_workspace_symbol\n");
+}
+
 static void test_shutdown()
 {
     printf("Running test_shutdown...\n");
@@ -923,6 +1010,7 @@ int main()
     test_empty_source();
     test_did_change();
     test_code_action();
+    test_workspace_symbol();
     test_shutdown();
     send_request("{\"jsonrpc\": \"2.0\", \"method\": \"exit\", \"params\": {}}");
     waitpid(child_pid, NULL, 0);

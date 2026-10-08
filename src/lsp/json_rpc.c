@@ -109,6 +109,7 @@ void handle_request(const char *json_str)
             "\"capabilities\":{\"textDocumentSync\":{\"openClose\":true,\"change\":1},"
             "\"definitionProvider\":true,\"hoverProvider\":true,"
             "\"referencesProvider\":true,\"documentSymbolProvider\":true,"
+            "\"workspaceSymbolProvider\":true,"
             "\"renameProvider\":true,\"codeActionProvider\":true,"
             "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\"]},"
             "\"completionProvider\":{"
@@ -216,6 +217,11 @@ void handle_request(const char *json_str)
             lsp_document_symbol(uri, id);
             zfree(uri);
         }
+    }
+    else if (strcmp(method, "workspace/symbol") == 0)
+    {
+        cJSON *query = cJSON_GetObjectItem(cJSON_GetObjectItem(json, "params"), "query");
+        lsp_workspace_symbol(cJSON_IsString(query) ? query->valuestring : "", id);
     }
     else if (strcmp(method, "textDocument/references") == 0)
     {
