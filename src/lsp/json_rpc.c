@@ -218,6 +218,7 @@ void handle_request(const char *json_str)
                 {
                     uri_decode(uri->valuestring);
                     lsp_check_file(uri->valuestring, text->valuestring, id);
+                    lsp_project_track_document(uri->valuestring, text->valuestring);
                 }
             }
         }
