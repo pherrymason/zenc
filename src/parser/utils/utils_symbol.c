@@ -380,15 +380,6 @@ EnumVariantReg *find_enum_variant(ParserContext *ctx, const char *name)
     return NULL;
 }
 
-static const char *strip_struct_prefix(const char *name)
-{
-    if (name && strncmp(name, "struct ", 7) == 0)
-    {
-        return name + 7;
-    }
-    return name;
-}
-
 // Several enums may share a variant name (`Slot::None`, `Attribute::None`), so
 // a lookup that knows the enum must filter by it instead of taking the first
 // variant with that name.
@@ -399,12 +390,11 @@ EnumVariantReg *find_enum_variant_of(ParserContext *ctx, const char *enum_name,
     {
         return NULL;
     }
-    const char *wanted_enum = strip_struct_prefix(enum_name);
     EnumVariantReg *r = ctx->enum_variants;
     while (r)
     {
         if (r->variant_name && r->enum_name && strcmp(r->variant_name, variant_name) == 0 &&
-            strcmp(strip_struct_prefix(r->enum_name), wanted_enum) == 0)
+            strcmp(r->enum_name, enum_name) == 0)
         {
             return r;
         }
