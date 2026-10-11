@@ -106,6 +106,29 @@ else
     check "zc transpile emits C source" 0
 fi
 
+out=$("$ZC" build "$workdir/smoke.zc" -o "$workdir/smoke_build" 2>&1)
+if [ -x "$workdir/smoke_build" ]; then
+    check "zc build compiles a program" 1
+else
+    check "zc build compiles a program" 0
+fi
+
+out=$("$ZC" "$workdir/smoke.zc" -o "$workdir/smoke_implicit" 2>&1)
+if [ -x "$workdir/smoke_implicit" ]; then
+    check "zc <file> builds without a command" 1
+else
+    check "zc <file> builds without a command" 0
+fi
+
+out=$("$ZC" frobnicate "$workdir/smoke.zc" -o "$workdir/smoke_unknown" 2>&1)
+rc=$?
+if [ "$rc" -ne 0 ] && echo "$out" | grep -q "unknown command 'frobnicate'" &&
+    [ ! -e "$workdir/smoke_unknown" ]; then
+    check "unknown command reports error" 1
+else
+    check "unknown command reports error" 0
+fi
+
 # --- Program output ----------------------------------------------------------
 
 # Runs a program and compares its exact standard output (stdin from $3).
