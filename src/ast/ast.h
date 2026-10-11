@@ -443,6 +443,7 @@ struct ASTNode
             ASTNode *args;
             char **arg_names;
             int count;
+            int from_index; ///< Rewritten from `x[i]` (an `index`/`get` overload).
         } call;
 
         struct
