@@ -1,0 +1,10 @@
+//> link: -lm
+// language/modules: `import "math.h" as c_math` when std/math.zc has already
+// imported math.h. The header is not read again, but the alias still works.
+import "std/math.zc"
+import "math.h" as c_math
+
+test "a C header alias after another import of the same header" {
+    expect(c_math::cbrt(27.0) == 3.0, "c_math::cbrt through the alias");
+    expect(Math::floor(2.5) == 2.0, "the module imported first still works");
+}
