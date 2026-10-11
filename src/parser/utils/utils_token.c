@@ -313,13 +313,12 @@ void skip_comments(Lexer *l)
 }
 
 static const char *C_RESERVED_WORDS[] = {
-    "int",           "char",     "void",
     "double",        "float",    "signed",   "unsigned",   "short",     "long",
     "auto",          "register", "switch",   "case",       "default",   "do",
     "goto",          "typedef",  "static",   "extern",     "volatile",  "inline",
     "restrict",      "sizeof",   "const",    "_Alignas",   "_Alignof",  "_Atomic",
     "_Bool",         "_Complex", "_Generic", "_Imaginary", "_Noreturn", "_Static_assert",
-    "_Thread_local", NULL};
+    "_Thread_local", "int",      "char",     "void",       NULL};
 
 int is_c_reserved_word(const char *name)
 {
@@ -440,21 +439,17 @@ void check_reserved_keyword(Token t)
     }
 }
 
-// A C keyword cannot name what is emitted unchanged into the generated C
-// (variables, parameters, fields, free functions...).
+// Names are emitted unchanged into the generated C (variables, parameters,
+// fields, free functions...), so a C keyword used as a name (`let double = 2;`)
+// can only end in C syntax errors.
 void check_c_identifier(Token t)
 {
-    // Names are emitted unchanged into the generated C, so a C keyword used as
-    // a name (`let double = 2;`) can only end in C syntax errors.
     char name[64];
-    int len = (int)(t.len < 63 ? t.len : 63);
-    strncpy(name, t.start, (size_t)(len));
-    name[len] = 0;
+    snprintf(name, sizeof(name), "%.*s", (int)t.len, t.start);
     if (is_c_reserved_word(name))
     {
         char buf[MAX_SHORT_MSG_LEN];
-        snprintf(buf, sizeof(buf), "'%s' is a C keyword and cannot be used as an identifier",
-                 name);
+        snprintf(buf, sizeof(buf), "'%s' is a C keyword and cannot be used as an identifier", name);
         const char *hints[] = {"Zen C names are emitted unchanged into the generated C",
                                "Rename it, for example with a suffix: `value_double`", NULL};
         zpanic_with_hints(t, buf, hints);

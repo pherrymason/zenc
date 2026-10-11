@@ -299,8 +299,8 @@ ASTNode *parse_struct(ParserContext *ctx, Lexer *l, int is_union, int is_opaque,
 
     // Generic templates are registered separately, so a concrete struct and a
     // generic one with the same name (a user `struct Box` and the std's
-    // `Box<T>`) were silently merged: the generic's impls, Drop included,
-    // applied to the concrete struct.
+    // `Box<T>`) would be silently merged: the generic's impls, Drop included,
+    // would apply to the concrete struct.
     if (!ctx->config->mode_lsp)
     {
         if (gp_count == 0)

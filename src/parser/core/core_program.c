@@ -299,8 +299,11 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
                         {
                             lexer_next(l);
                             Type *type_obj = parse_type_formal(ctx, l);
-                            add_symbol_with_token(ctx, name, type_to_string(type_obj), type_obj,
-                                                  sym, attrs.is_export);
+                            if (type_obj != NULL)
+                            {
+                                add_symbol_with_token(ctx, name, type_to_string(type_obj), type_obj,
+                                                      sym, attrs.is_export);
+                            }
                         }
 
                         Token next = lexer_peek(l);
@@ -314,12 +317,15 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
                         }
                     }
 
-                    if (lexer_peek(l).kind != TOK_SEMICOLON)
+                    if (lexer_peek(l).kind == TOK_SEMICOLON)
                     {
-                        zpanic_at(lexer_peek(l), "Expected ';' after extern declaration");
-                        return NULL;
+                        lexer_next(l);
                     }
-                    lexer_next(l);
+                    else
+                    {
+                        // Fault-tolerant (LSP): the loop resyncs on the next declaration.
+                        zpanic_at(lexer_peek(l), "Expected ';' after extern declaration");
+                    }
                     continue;
                 }
             }
@@ -372,11 +378,12 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
             }
             else if (t.len == 5 && strncmp(t.start, "const", 5) == 0)
             {
-                const char *hints[] = {
-                    "For a compile-time constant use `def NAME = value;`",
-                    "For a read-only global use `let NAME: const Type = value;`", NULL};
+                const char *hints[] = {"For a compile-time constant use `def NAME = value;`",
+                                       "For a read-only global use `let NAME: const Type = value;`",
+                                       NULL};
                 zpanic_with_hints(t, "'const' cannot start a top-level declaration", hints);
-                return NULL;
+                lexer_next(l); // fault-tolerant (LSP): resync on the next declaration
+                continue;
             }
             else
             {

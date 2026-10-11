@@ -100,8 +100,8 @@ static char *canonical_type_name(TypeChecker *tc, Type *t, int depth)
     // (`Vec<DirEntry*>` substitutes T by `DirEntryPtr`): read it back as
     // `<Name>*` when `<Name>Ptr` is not a type of its own.
     size_t name_len = strlen(name);
-    if (name_len > 3 && strcmp(name + name_len - 3, "Ptr") == 0 && !find_struct_def(tc->pctx, name) &&
-        !find_type_alias(tc->pctx, name))
+    if (name_len > 3 && strcmp(name + name_len - 3, "Ptr") == 0 &&
+        !find_struct_def(tc->pctx, name) && !find_type_alias(tc->pctx, name))
     {
         char *base_name = xstrdup(name);
         base_name[name_len - 3] = 0;
