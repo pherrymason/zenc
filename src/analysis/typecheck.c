@@ -67,7 +67,8 @@ static Type *match_binding_type(TypeChecker *tc, Type *scrutinee, const char *pa
     ASTNode *v = def->enm.variants;
     while (v)
     {
-        if (v->kind == NODE_ENUM_VARIANT && v->variant.name && strcmp(v->variant.name, variant) == 0)
+        if (v->kind == NODE_ENUM_VARIANT && v->variant.name &&
+            strcmp(v->variant.name, variant) == 0)
         {
             Type *payload = v->variant.payload;
             if (!payload)
@@ -342,10 +343,9 @@ void check_node(TypeChecker *tc, ASTNode *node, int depth)
                             char *bname = mcase->match_case.binding_names[i];
                             if (bname)
                             {
-                                Type *bt = match_binding_type(
-                                    tc, node->match_stmt.expr->type_info,
-                                    mcase->match_case.pattern, i,
-                                    mcase->match_case.binding_count);
+                                Type *bt = match_binding_type(tc, node->match_stmt.expr->type_info,
+                                                              mcase->match_case.pattern, i,
+                                                              mcase->match_case.binding_count);
                                 if (!bt)
                                 {
                                     bt = type_new(TYPE_UNSAFE_ANY);
