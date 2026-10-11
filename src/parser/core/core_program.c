@@ -12,6 +12,28 @@
 #include "utils/utils.h"
 #include "ast/primitives.h"
 
+// An interpolated string runs at run time, so it cannot initialize a global:
+// the C would put a statement expression at file scope.
+static void check_global_initializers(ASTNode *decls)
+{
+    for (ASTNode *d = decls; d; d = d->next)
+    {
+        if (d->kind != NODE_VAR_DECL)
+        {
+            continue;
+        }
+        ASTNode *init = d->var_decl.init_expr;
+        if (init && init->kind == NODE_RAW_STMT &&
+            (init->token.kind == TOK_STRING || init->token.kind == TOK_FSTRING))
+        {
+            zerror_at(init->token,
+                      "A global cannot be initialized with an interpolated string (it is built "
+                      "at run time); move it into a function, or write literal braces as "
+                      "'{{' and '}}'");
+        }
+    }
+}
+
 ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
 {
     ASTNode *h = 0, *tl = 0;
@@ -213,6 +235,7 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
                 if (next.kind == TOK_IDENT && next.len == 3 && strncmp(next.start, "let", 3) == 0)
                 {
                     s = parse_var_decl(ctx, l, attrs.is_export);
+                    check_global_initializers(s);
                     if (s)
                     {
                         s->var_decl.is_static = 1;
@@ -231,6 +254,7 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
             else if (t.len == 3 && strncmp(t.start, "let", 3) == 0)
             {
                 s = parse_var_decl(ctx, l, attrs.is_export);
+                check_global_initializers(s);
             }
             else if (t.len == 6 && strncmp(t.start, "extern", 6) == 0)
             {
