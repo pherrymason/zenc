@@ -680,10 +680,16 @@ void re_export_wildcard_symbols(ParserContext *ctx, const char *module_base)
     zfree(prefix);
 }
 
+// Both separators, whatever the platform, as extract_module_name accepts them.
+static int is_path_sep(char c)
+{
+    return c == '/' || c == '\\';
+}
+
 // The symbol prefix of a module imported with `as`, selectively or as `*`.
 // Normally its file name (`helpers.zc` → `helpers`); when another file already
-// owns that prefix (`facts/helpers.zc` and `casefile/helpers.zc`), the parent
-// directory is prepended (`casefile_helpers`), then a counter if still taken.
+// owns that prefix (`net/helpers.zc` and `fs/helpers.zc`), the parent
+// directory is prepended (`fs_helpers`), then a counter if still taken.
 // The same path always gets the same prefix within a build.
 char *module_prefix_for(ParserContext *ctx, const char *path)
 {
@@ -697,17 +703,19 @@ char *module_prefix_for(ParserContext *ctx, const char *path)
     const char **owner = zmap_get(&ctx->imports.prefix_owners, prefix);
     if (owner && strcmp(*owner, path) != 0)
     {
-        // `<parent dir>_<file>`
-        const char *end = strrchr(path, '/');
-        const char *start = path;
-        if (end)
+        // `<parent dir>_<file>`: `end` is the last separator, `start` the one before it.
+        const char *end = NULL;
+        for (const char *c = path; *c; c++)
         {
-            const char *p = end - 1;
-            while (p > path && *p != '/')
+            if (is_path_sep(*c))
             {
-                p--;
+                end = c;
             }
-            start = (*p == '/') ? p + 1 : p;
+        }
+        const char *start = end ? end : path;
+        while (start > path && !is_path_sep(start[-1]))
+        {
+            start--;
         }
         size_t dir_len = end ? (size_t)(end - start) : 0;
         size_t cap = dir_len + strlen(prefix) + 16;

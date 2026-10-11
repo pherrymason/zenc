@@ -114,6 +114,37 @@ static CValue val_string(const char *s)
     return v;
 }
 
+// The character a one-letter escape (`\n`, `\t`...) stands for, or -1.
+static int simple_escape(char c)
+{
+    switch (c)
+    {
+    case 'n':
+        return '\n';
+    case 't':
+        return '\t';
+    case 'r':
+        return '\r';
+    case 'a':
+        return '\a';
+    case 'b':
+        return '\b';
+    case 'f':
+        return '\f';
+    case 'v':
+        return '\v';
+    case 'e':
+        return 27;
+    default:
+        return -1;
+    }
+}
+
+static int is_hex_digit(char c)
+{
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
 // A string literal's string_val holds its text as written in C (escapes
 // included), ready for codegen. At compile time we need the characters
 // themselves: `code("];\n")` must yield a newline, not `\` and `n`.
@@ -130,66 +161,50 @@ static char *unescape_c_string(const char *s)
         }
         s++;
         char c = *s++;
-        switch (c)
+        int simple = simple_escape(c);
+        if (simple >= 0)
         {
-        case 'n':
-            *p++ = '\n';
-            break;
-        case 't':
-            *p++ = '\t';
-            break;
-        case 'r':
-            *p++ = '\r';
-            break;
-        case 'a':
-            *p++ = '\a';
-            break;
-        case 'b':
-            *p++ = '\b';
-            break;
-        case 'f':
-            *p++ = '\f';
-            break;
-        case 'v':
-            *p++ = '\v';
-            break;
-        case 'e':
-            *p++ = 27;
-            break;
-        case 'x':
+            *p++ = (char)simple;
+        }
+        else if (c == 'x')
         {
             unsigned int val = 0;
-            int digits = 0;
-            while (digits < 2 && ((*s >= '0' && *s <= '9') || (*s >= 'a' && *s <= 'f') ||
-                                  (*s >= 'A' && *s <= 'F')))
+            for (int digits = 0; digits < 2 && is_hex_digit(*s); digits++, s++)
             {
                 val = (val << 4) | (unsigned int)(*s <= '9' ? *s - '0' : (*s | 0x20) - 'a' + 10);
-                s++;
-                digits++;
             }
             *p++ = (char)val;
-            break;
         }
-        default:
-            if (c >= '0' && c <= '7')
+        else if (c >= '0' && c <= '7')
+        {
+            unsigned int val = (unsigned int)(c - '0');
+            for (int k = 0; k < 2 && *s >= '0' && *s <= '7'; k++)
             {
-                unsigned int val = (unsigned int)(c - '0');
-                for (int k = 0; k < 2 && *s >= '0' && *s <= '7'; k++)
-                {
-                    val = (val << 3) | (unsigned int)(*s++ - '0');
-                }
-                *p++ = (char)val;
+                val = (val << 3) | (unsigned int)(*s++ - '0');
             }
-            else
-            {
-                // \\, \", \' and anything unknown: the character itself.
-                *p++ = c;
-            }
-            break;
+            *p++ = (char)val;
+        }
+        else
+        {
+            // \\, \", \' and anything unknown: the character itself.
+            *p++ = c;
         }
     }
     *p = '\0';
     return out;
+}
+
+// The value of a string literal: raw strings already hold their characters.
+static CValue string_literal_value(ASTNode *node)
+{
+    const char *text = node->literal.string_val ? node->literal.string_val : "";
+    if (node->literal.kind == LITERAL_RAW_STRING)
+    {
+        return val_string(text);
+    }
+    CValue v = {VAL_STRING, {0}};
+    v.as.s = unescape_c_string(text);
+    return v;
 }
 
 static void val_free(CValue *v)
@@ -300,11 +315,8 @@ static CValue eval_literal(CInterp *ci, ASTNode *node)
         v.as.i = (int64_t)node->literal.float_val;
         break;
     case LITERAL_STRING:
-        v.kind = VAL_STRING;
-        v.as.s = unescape_c_string(node->literal.string_val ? node->literal.string_val : "");
-        break;
     case LITERAL_RAW_STRING:
-        v = val_string(node->literal.string_val ? node->literal.string_val : "");
+        v = string_literal_value(node);
         break;
     case LITERAL_CHAR:
         v.kind = VAL_INT;

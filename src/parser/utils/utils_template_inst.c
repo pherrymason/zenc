@@ -886,7 +886,7 @@ static void register_enum_constructor(ParserContext *ctx, const char *m, const c
     size_t mangled_var_sz = strlen(m) + strlen(var_name) + 3;
     char *mangled_var = xmalloc((size_t)(mangled_var_sz));
     snprintf(mangled_var, mangled_var_sz, "%s__%s", m, var_name);
-    register_enum_variant(ctx, m, mangled_var, tag_id);
+    register_enum_variant(ctx, var_name, m, tag_id);
 
     Type *ret_t = type_new(TYPE_ENUM);
     ret_t->name = xstrdup(m);
