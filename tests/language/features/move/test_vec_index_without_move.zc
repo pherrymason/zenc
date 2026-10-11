@@ -1,0 +1,42 @@
+// features/move: indexing a Vec without moving a Drop element out keeps working.
+
+import "std/vec.zc"
+
+struct Resource {
+    id: int
+}
+
+impl Drop for Resource {
+    fn drop(self) {}
+}
+
+impl Resource {
+    fn twice(self) -> int {
+        return self.id * 2
+    }
+}
+
+struct Point {
+    x: int
+    y: int
+}
+
+test "vec index reads" {
+    let numbers = Vec<int>::new()
+    numbers.push(4)
+    let n = numbers[0]
+    assert(n == 4, "copy of an int")
+
+    let points = Vec<Point>::new()
+    points.push(Point { x: 1, y: 2 })
+    let p = points[0]
+    assert(p.x == 1 && p.y == 2, "copy of a plain struct")
+
+    let items = Vec<Resource>::new()
+    items.push(Resource { id: 3 })
+    let id = items[0].id
+    assert(id == 3, "field of an element")
+    assert(items[0].twice() == 6, "method on an element")
+    let r = items.get_ref(0)
+    assert(r.id == 3, "borrowed element")
+}

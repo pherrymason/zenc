@@ -1553,6 +1553,7 @@ static ASTNode *parse_expr_prec_impl(ParserContext *ctx, Lexer *l, Precedence mi
                         // Rewrite to Call
                         ASTNode *call = ast_create(NODE_EXPR_CALL);
                         call->token = t;
+                        call->call.from_index = 1;
                         ASTNode *callee;
 
                         if (is_generic_template)

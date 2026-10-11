@@ -395,6 +395,7 @@ void check_node(TypeChecker *tc, ASTNode *node, int depth)
 
                     node->kind = NODE_EXPR_CALL;
                     memset(&node->call, 0, sizeof(node->call));
+                    node->call.from_index = 1;
 
                     ASTNode *callee = ast_create(NODE_EXPR_MEMBER);
                     callee->token = node->token;

@@ -1,0 +1,20 @@
+// EXPECT: FAIL
+// features/move: `v[i]` on a Vec of a type with Drop would copy the element out
+// while the Vec still owns it (double drop): it must be rejected like `arr[i]`.
+
+import "std/vec.zc"
+
+struct Resource {
+    id: int
+}
+
+impl Drop for Resource {
+    fn drop(self) {}
+}
+
+fn main() {
+    let items = Vec<Resource>::new()
+    items.push(Resource { id: 1 })
+    let first = items[0]
+    println "{first.id}"
+}

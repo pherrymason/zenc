@@ -41,6 +41,14 @@ void check_move_for_rvalue(TypeChecker *tc, ASTNode *rvalue)
         tc_move_error_with_hints(tc, rvalue->token, "Cannot move out of an index expression",
                                  hints);
     }
+    else if (rvalue->kind == NODE_EXPR_CALL && rvalue->call.from_index)
+    {
+        // `v[i]` on a collection returns a copy of an element the collection still owns.
+        const char *hints[] = {"The collection still owns the element: both would be dropped.",
+                               "Borrow it instead (e.g. 'get_ref(i)') or clone it.", NULL};
+        tc_move_error_with_hints(tc, rvalue->token, "Cannot move out of an index expression",
+                                 hints);
+    }
 }
 
 Type *resolve_alias(Type *t)

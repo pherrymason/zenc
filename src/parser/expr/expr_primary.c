@@ -2562,6 +2562,7 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                     // Rewrite to Call: node.get(index, ...)
                     ASTNode *call = ast_create(NODE_EXPR_CALL);
                     call->token = t;
+                    call->call.from_index = 1;
                     ASTNode *callee = ast_create(NODE_EXPR_VAR);
                     callee->var_ref.name = xstrdup(mangled);
                     call->call.callee = callee;
