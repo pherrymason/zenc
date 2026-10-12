@@ -45,25 +45,19 @@ ASTNode *parse_test(ParserContext *ctx, Lexer *l)
     n->test_stmt.module_prefix = ctx->imports.current_module_prefix;
     n->test_stmt.filename = ctx->current_filename;
 
-    if (getenv("ZC_DEFER_BODIES"))
+    // The body is parsed once all declarations are known (parse_pending_bodies).
+    PendingBody *pending = xcalloc(1, sizeof(PendingBody));
+    pending->node = n;
+    pending->name = name;
+    pending->body_start = *l;
+    pending->scope = ctx->current_scope;
+    pending->in_method_with_self = ctx->in_method_with_self;
+    pending->self_is_pointer = ctx->self_is_pointer;
+    if (!skip_braced_block(l))
     {
-        PendingBody *pending = xcalloc(1, sizeof(PendingBody));
-        pending->node = n;
-        pending->name = name;
-        pending->body_start = *l;
-        pending->scope = ctx->current_scope;
-        pending->in_method_with_self = ctx->in_method_with_self;
-        pending->self_is_pointer = ctx->self_is_pointer;
-        if (!skip_braced_block(l))
-        {
-            return NULL;
-        }
-        push_pending_body(ctx, pending);
+        return NULL;
     }
-    else
-    {
-        n->test_stmt.body = parse_block(ctx, l);
-    }
+    push_pending_body(ctx, pending);
 
     return n;
 }
