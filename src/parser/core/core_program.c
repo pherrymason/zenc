@@ -25,7 +25,8 @@ static void report_unexpected_toplevel(Token t)
 }
 
 // An interpolated string runs at run time, so it cannot initialize a global:
-// the C would put a statement expression at file scope.
+// the C would put a statement expression (`({ ... })`) at file scope. Only that
+// is rejected: `embed "file" as string` is a raw statement too, but a constant.
 static void check_global_initializers(ASTNode *decls)
 {
     for (ASTNode *d = decls; d; d = d->next)
@@ -35,8 +36,8 @@ static void check_global_initializers(ASTNode *decls)
             continue;
         }
         ASTNode *init = d->var_decl.init_expr;
-        if (init && init->kind == NODE_RAW_STMT &&
-            (init->token.kind == TOK_STRING || init->token.kind == TOK_FSTRING))
+        if (init && init->kind == NODE_RAW_STMT && init->raw_stmt.content &&
+            strncmp(init->raw_stmt.content, "({", 2) == 0)
         {
             zerror_at(init->token,
                       "A global cannot be initialized with an interpolated string (it is built "
