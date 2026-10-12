@@ -363,7 +363,7 @@ static inline void module_state_init(ModuleState *ms)
  */
 typedef struct PendingBody
 {
-    ASTNode *func;           ///< Node whose body is still missing.
+    ASTNode *node;           ///< Function or test whose body is still missing.
     char *name;              ///< Function name as written.
     Lexer body_start;        ///< Lexer positioned at the body's opening '{'.
     Scope *scope;            ///< Scope holding the parameters.
@@ -865,6 +865,7 @@ char *token_get_string_content(Token t);
 ASTNode *find_struct_def(ParserContext *ctx, const char *name);
 ASTNode *parse_function(ParserContext *ctx, Lexer *l, int is_async, int is_extern,
                         const char *link_name, int is_export);
+void push_pending_body(ParserContext *ctx, PendingBody *pending);
 void parse_pending_bodies(ParserContext *ctx);
 ASTNode *parse_struct(ParserContext *ctx, Lexer *l, int is_union, int is_packed, int align,
                       const char *link_name, int is_export);

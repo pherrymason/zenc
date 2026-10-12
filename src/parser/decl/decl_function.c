@@ -13,7 +13,7 @@
 #include "ast/primitives.h"
 
 // Appends a body to the end of ctx's pending list (parsed in declaration order).
-static void push_pending_body(ParserContext *ctx, PendingBody *pending)
+void push_pending_body(ParserContext *ctx, PendingBody *pending)
 {
     if (ctx->pending_bodies_tail)
     {
@@ -306,7 +306,7 @@ ASTNode *parse_function(ParserContext *ctx, Lexer *l, int is_async, int is_exter
 
     if (pending)
     {
-        pending->func = node;
+        pending->node = node;
         push_pending_body(ctx, pending);
     }
 
@@ -404,23 +404,43 @@ void parse_pending_bodies(ParserContext *ctx)
             ctx->pending_bodies_tail = NULL;
         }
 
-        ASTNode *func = pending->func;
+        ASTNode *node = pending->node;
         ctx->current_scope = pending->scope;
-        ctx->imports.current_module_prefix = func->func.module_prefix;
-        ctx->current_impl_struct = func->func.impl_struct;
         ctx->current_impl_methods = NULL; // every method is registered by now
-        ctx->current_filename = func->func.filename;
         ctx->in_method_with_self = pending->in_method_with_self;
         ctx->self_is_pointer = pending->self_is_pointer;
-        curr_func_ret = func->func.ret_type;
         ctx->had_error = 0;
 
-        Lexer body_lexer = pending->body_start;
-        func->func.body = parse_block(ctx, &body_lexer);
-        if (func->func.body)
+        if (node->kind == NODE_TEST)
         {
-            check_unused_parameters(ctx, pending->scope, pending->name);
+            ctx->imports.current_module_prefix = node->test_stmt.module_prefix;
+            ctx->current_impl_struct = NULL;
+            ctx->current_filename = node->test_stmt.filename;
+            curr_func_ret = NULL;
         }
+        else
+        {
+            ctx->imports.current_module_prefix = node->func.module_prefix;
+            ctx->current_impl_struct = node->func.impl_struct;
+            ctx->current_filename = node->func.filename;
+            curr_func_ret = node->func.ret_type;
+        }
+
+        Lexer body_lexer = pending->body_start;
+        ASTNode *body = parse_block(ctx, &body_lexer);
+        if (node->kind == NODE_TEST)
+        {
+            node->test_stmt.body = body;
+        }
+        else
+        {
+            node->func.body = body;
+            if (body)
+            {
+                check_unused_parameters(ctx, pending->scope, pending->name);
+            }
+        }
+
         ctx->last_doc_comment = NULL;
     }
 
