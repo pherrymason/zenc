@@ -12,6 +12,20 @@
 #include "utils/utils.h"
 #include "ast/primitives.h"
 
+// Appends a body to the end of ctx's pending list (parsed in declaration order).
+static void push_pending_body(ParserContext *ctx, PendingBody *pending)
+{
+    if (ctx->pending_bodies_tail)
+    {
+        ctx->pending_bodies_tail->next = pending;
+    }
+    else
+    {
+        ctx->pending_bodies = pending;
+    }
+    ctx->pending_bodies_tail = pending;
+}
+
 ASTNode *parse_function(ParserContext *ctx, Lexer *l, int is_async, int is_extern,
                         const char *link_name, int is_export)
 {
@@ -168,6 +182,11 @@ ASTNode *parse_function(ParserContext *ctx, Lexer *l, int is_async, int is_exter
         // Note: required is set after return by caller (parser_core.c)
     }
 
+    // Concrete bodies are parsed once all declarations are known.
+    // Generic templates are not: instantiation copies their body.
+    int defer_body = getenv("ZC_DEFER_BODIES") && !gen_param && ctx->known_generics_count == 0;
+    PendingBody *pending = NULL;
+
     ASTNode *body = NULL;
     Token next_tok = lexer_peek(l);
     if (next_tok.kind == TOK_SEMICOLON)
@@ -185,11 +204,30 @@ ASTNode *parse_function(ParserContext *ctx, Lexer *l, int is_async, int is_exter
             ctx->self_is_pointer = (strstr(args, "self*") != NULL);
         }
 
-        body = parse_block(ctx, l);
+        int skipped = 1;
+        if (defer_body)
+        {
+            pending = xcalloc(1, sizeof(PendingBody));
+            pending->name = name;
+            pending->body_start = *l;
+            pending->scope = ctx->current_scope;
+            pending->in_method_with_self = ctx->in_method_with_self;
+            pending->self_is_pointer = ctx->self_is_pointer;
+            skipped = skip_braced_block(l);
+        }
+        else
+        {
+            body = parse_block(ctx, l);
+        }
 
         // Restore previous state
         ctx->in_method_with_self = prev_in_method;
         ctx->self_is_pointer = prev_self_ptr;
+
+        if (!skipped)
+        {
+            return NULL;
+        }
     }
     else
     {
@@ -241,6 +279,15 @@ ASTNode *parse_function(ParserContext *ctx, Lexer *l, int is_async, int is_exter
     node->func.is_extern = is_extern;
     node->func.c_type_overrides = ctype_overrides;
     node->link_name = link_name ? xstrdup(link_name) : NULL;
+    node->func.module_prefix = ctx->imports.current_module_prefix;
+    node->func.impl_struct = ctx->current_impl_struct;
+    node->func.filename = ctx->current_filename;
+
+    if (pending)
+    {
+        pending->func = node;
+        push_pending_body(ctx, pending);
+    }
 
     if (gen_param)
     {

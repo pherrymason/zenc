@@ -647,6 +647,12 @@ void token_set_parser_ctx(ParserContext *ctx);
 char *consume_until_semicolon(Lexer *l);
 
 /**
+ * @brief Skips a `{ ... }` block, braces included. The next token must be `{`.
+ * @return 1 on success, 0 if the file ends before the block is closed.
+ */
+int skip_braced_block(Lexer *l);
+
+/**
  * @brief Consumes and rewrites tokens.
  */
 
