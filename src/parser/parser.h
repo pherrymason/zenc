@@ -865,6 +865,7 @@ char *token_get_string_content(Token t);
 ASTNode *find_struct_def(ParserContext *ctx, const char *name);
 ASTNode *parse_function(ParserContext *ctx, Lexer *l, int is_async, int is_extern,
                         const char *link_name, int is_export);
+void parse_pending_bodies(ParserContext *ctx);
 ASTNode *parse_struct(ParserContext *ctx, Lexer *l, int is_union, int is_packed, int align,
                       const char *link_name, int is_export);
 ASTNode *parse_enum(ParserContext *ctx, Lexer *l, const char *link_name, int is_export);

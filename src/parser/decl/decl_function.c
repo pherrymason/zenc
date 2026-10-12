@@ -26,6 +26,36 @@ static void push_pending_body(ParserContext *ctx, PendingBody *pending)
     ctx->pending_bodies_tail = pending;
 }
 
+// Warns about the parameters in `scope` that the function body never used.
+static void check_unused_parameters(ParserContext *ctx, Scope *scope, const char *func_name)
+{
+    ZenSymbol *sym = scope->symbols;
+    while (sym)
+    {
+        // Check if unused and not prefixed with `_`
+        // also ignore `self` as it's often mandated by traits
+        if (!sym->is_used && !ctx->config->misra_mode && sym->name[0] != '_' &&
+            strcmp(sym->name, "self") != 0 && strcmp(func_name, "main") != 0)
+        {
+            warn_unused_parameter(sym->decl_token, sym->name, func_name);
+        }
+        sym = sym->next;
+    }
+}
+
+// An impl block on a generic struct or enum is a template even when written
+// without `<T>` (`impl Drop for Vec`): instantiation copies its methods.
+static int in_generic_impl(ParserContext *ctx)
+{
+    if (!ctx->current_impl_struct)
+    {
+        return 0;
+    }
+    ASTNode *def = find_struct_def(ctx, ctx->current_impl_struct);
+    return def && ((def->kind == NODE_STRUCT && def->strct.is_template) ||
+                   (def->kind == NODE_ENUM && def->enm.is_template));
+}
+
 ASTNode *parse_function(ParserContext *ctx, Lexer *l, int is_async, int is_extern,
                         const char *link_name, int is_export)
 {
@@ -182,9 +212,11 @@ ASTNode *parse_function(ParserContext *ctx, Lexer *l, int is_async, int is_exter
         // Note: required is set after return by caller (parser_core.c)
     }
 
-    // Concrete bodies are parsed once all declarations are known.
-    // Generic templates are not: instantiation copies their body.
-    int defer_body = getenv("ZC_DEFER_BODIES") && !gen_param && ctx->known_generics_count == 0;
+    // Concrete bodies are parsed once all declarations are known. Generic
+    // templates are not: instantiation copies their body. That includes the
+    // methods of an impl on a generic type written without `<T>`.
+    int defer_body = getenv("ZC_DEFER_BODIES") && !gen_param && ctx->known_generics_count == 0 &&
+                     !in_generic_impl(ctx);
     PendingBody *pending = NULL;
 
     ASTNode *body = NULL;
@@ -240,18 +272,7 @@ ASTNode *parse_function(ParserContext *ctx, Lexer *l, int is_async, int is_exter
     // scope for body) Only check if we parsed a body (not a prototype) function
     if (body && ctx->current_scope)
     {
-        ZenSymbol *sym = ctx->current_scope->symbols;
-        while (sym)
-        {
-            // Check if unused and not prefixed with '_' (conventional ignore)
-            // also ignore 'self' as it is often mandated by traits
-            if (!sym->is_used && !ctx->config->misra_mode && sym->name[0] != '_' &&
-                strcmp(sym->name, "self") != 0 && strcmp(name, "main") != 0)
-            {
-                warn_unused_parameter(sym->decl_token, sym->name, name);
-            }
-            sym = sym->next;
-        }
+        check_unused_parameters(ctx, ctx->current_scope, name);
     }
 
     exit_scope(ctx);
@@ -353,4 +374,65 @@ char *patch_self_args(const char *args, const char *struct_name)
     }
     zfree(safe_name);
     return new_args;
+}
+
+/**
+ * @brief Parses the bodies that parse_function deferred, in declaration order.
+ */
+void parse_pending_bodies(ParserContext *ctx)
+{
+    Scope *saved_scope = ctx->current_scope;
+    char *saved_prefix = ctx->imports.current_module_prefix;
+    char *saved_impl = ctx->current_impl_struct;
+    ASTNode *saved_impl_methods = ctx->current_impl_methods;
+    const char *saved_filename = ctx->current_filename;
+    int saved_in_method = ctx->in_method_with_self;
+    int saved_self_ptr = ctx->self_is_pointer;
+    char *saved_ret = curr_func_ret;
+    char *saved_doc = ctx->last_doc_comment;
+
+    // We increment parse depth so a parse_program_nodes inside a body does not start another round.
+    ctx->parse_depth++;
+
+    while (ctx->pending_bodies)
+    {
+        // Take it out before processing it: parsing may queue more bodies
+        PendingBody *pending = ctx->pending_bodies;
+        ctx->pending_bodies = pending->next;
+        if (!ctx->pending_bodies)
+        {
+            ctx->pending_bodies_tail = NULL;
+        }
+
+        ASTNode *func = pending->func;
+        ctx->current_scope = pending->scope;
+        ctx->imports.current_module_prefix = func->func.module_prefix;
+        ctx->current_impl_struct = func->func.impl_struct;
+        ctx->current_impl_methods = NULL; // every method is registered by now
+        ctx->current_filename = func->func.filename;
+        ctx->in_method_with_self = pending->in_method_with_self;
+        ctx->self_is_pointer = pending->self_is_pointer;
+        curr_func_ret = func->func.ret_type;
+        ctx->had_error = 0;
+
+        Lexer body_lexer = pending->body_start;
+        func->func.body = parse_block(ctx, &body_lexer);
+        if (func->func.body)
+        {
+            check_unused_parameters(ctx, pending->scope, pending->name);
+        }
+        ctx->last_doc_comment = NULL;
+    }
+
+    // Restore context state
+    ctx->parse_depth--;
+    ctx->current_scope = saved_scope;
+    ctx->imports.current_module_prefix = saved_prefix;
+    ctx->current_impl_struct = saved_impl;
+    ctx->current_impl_methods = saved_impl_methods;
+    ctx->current_filename = saved_filename;
+    ctx->in_method_with_self = saved_in_method;
+    ctx->self_is_pointer = saved_self_ptr;
+    curr_func_ret = saved_ret;
+    ctx->last_doc_comment = saved_doc;
 }
