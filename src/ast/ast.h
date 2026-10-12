@@ -572,6 +572,10 @@ struct ASTNode
         {
             char *name;
             ASTNode *body;
+
+            // Declaration context
+            char *module_prefix;  // C prefix of the declaring module
+            const char *filename; // Source file that declares the test
         } test_stmt;
 
         struct
