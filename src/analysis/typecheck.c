@@ -97,7 +97,7 @@ static Type *match_binding_type(TypeChecker *tc, Type *scrutinee, const char *pa
                         // field type as text.
                         if (!field->type_info && field->field.type)
                         {
-                            return type_from_string_helper(field->field.type);
+                            return type_from_string_helper(tc->pctx, field->field.type);
                         }
                         return field->type_info;
                     }
@@ -752,7 +752,7 @@ void check_node(TypeChecker *tc, ASTNode *node, int depth)
         if (node->cast.expr && node->cast.expr->type_info && node->cast.target_type)
         {
             Type *source_type = resolve_alias(node->cast.expr->type_info);
-            Type *target_type = type_from_string_helper(node->cast.target_type);
+            Type *target_type = type_from_string_helper(tc->pctx, node->cast.target_type);
 
             if (tc->pctx->config->misra_mode && target_type)
             {
