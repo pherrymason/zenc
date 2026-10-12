@@ -359,6 +359,20 @@ static inline void module_state_init(ModuleState *ms)
 }
 
 /**
+ * @brief A function body whose parsing is postponed until all declarations are known.
+ */
+typedef struct PendingBody
+{
+    ASTNode *func;           ///< Node whose body is still missing.
+    char *name;              ///< Function name as written.
+    Lexer body_start;        ///< Lexer positioned at the body's opening '{'.
+    Scope *scope;            ///< Scope holding the parameters.
+    int in_method_with_self; ///< `.field` shorthand allowed in this body.
+    int self_is_pointer;     ///< `self` is a pointer in this body.
+    struct PendingBody *next;
+} PendingBody;
+
+/**
  * @brief Global compilation state and symbol table.
  *
  * ParserContext maintains the state of the compiler during parsing and analysis.
@@ -418,6 +432,11 @@ struct ParserContext
     ASTNode *current_impl_methods; ///< Head of method list for current impl block.
     int in_method_with_self;       ///< 1 if parsing body of method with self parameter.
     int self_is_pointer;           ///< 1 if self is a pointer receiver (self*).
+
+    // Deferred function bodies
+    PendingBody *pending_bodies;      ///< First body waiting to be parsed (FIFO).
+    PendingBody *pending_bodies_tail; ///< Last one, to append in O(1).
+    int parse_depth;                  ///< Nesting of parse_program_nodes; bodies are parsed at 0.
 
     // Internal tracking
     DeprecatedFunc *deprecated_funcs; ///< Registry of deprecated functions.
