@@ -215,8 +215,7 @@ ASTNode *parse_function(ParserContext *ctx, Lexer *l, int is_async, int is_exter
     // Concrete bodies are parsed once all declarations are known. Generic
     // templates are not: instantiation copies their body. That includes the
     // methods of an impl on a generic type written without `<T>`.
-    int defer_body = getenv("ZC_DEFER_BODIES") && !gen_param && ctx->known_generics_count == 0 &&
-                     !in_generic_impl(ctx);
+    int defer_body = !gen_param && ctx->known_generics_count == 0 && !in_generic_impl(ctx);
     PendingBody *pending = NULL;
 
     ASTNode *body = NULL;
