@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: MIT
+#ifndef UTILS_MANGLE_H
+#ifndef ZC_ALLOW_INTERNAL
+#error "utils/mangle.h is internal to Zen C. Include the appropriate public header instead."
+#endif
+
+#define UTILS_MANGLE_H
+
+/**
+ * @file utils/mangle.h
+ * @brief The C names of Zen C symbols (see MANGLING.md).
+ *
+ * The parser, the typechecker and codegen all build these names, so they live in one place
+ * and nobody re-implements them with "%s__%s".
+ */
+
+/**
+ * @brief Collapses runs of four or more underscores into a double underscore.
+ *        A run of exactly three is preserved: it encodes the "__" separator
+ *        plus an identifier that begins with "_" (e.g. `Struct::_method`), so
+ *        collapsing it would make distinct symbols collide.
+ */
+char *merge_underscores(const char *name);
+
+/**
+ * @brief The C name of a method: `Struct__method`, or `Struct__Trait__method` for the
+ *        method of a trait impl (trait_name may be NULL).
+ */
+char *mangle_method_symbol(const char *struct_name, const char *trait_name,
+                           const char *method_name);
+
+#endif // UTILS_MANGLE_H

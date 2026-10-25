@@ -57,7 +57,7 @@ called from C.
 ## Where mangling happens
 
 Method symbols are produced by `mangle_method_symbol()` in
-`src/parser/struct/struct_shared.c`, used by method registration
+`src/utils/mangle.c`, used by method registration
 (`src/parser/struct/struct_impl.c`) and method resolution
 (`src/parser/expr/expr_prec.c`). Generic method instantiation
 (`src/parser/utils/utils_template_inst.c`) re-mangles the method name with the
