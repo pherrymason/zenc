@@ -41,4 +41,10 @@ char *mangle_module_symbol(const char *module_prefix, const char *name);
  */
 char *mangle_variant_symbol(const char *enum_c_name, const char *variant_name);
 
+/**
+ * @brief A type written as it can appear inside a C name: `*` becomes `Ptr`, `<`, `,` and
+ *        spaces become `__`, `>` and `&` are dropped, a leading `struct ` is skipped.
+ */
+char *sanitize_mangled_name(const char *s);
+
 #endif // UTILS_MANGLE_H

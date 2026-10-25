@@ -804,7 +804,6 @@ void sync_all_link_names(ParserContext *ctx, ASTNode *root);
  */
 void register_builtins(ParserContext *ctx);
 void register_comptime_builtins(ParserContext *ctx);
-char *sanitize_mangled_name(const char *s);
 void register_tuple_with_types(ParserContext *ctx, const char *sig, const char **types, int count);
 ASTNode *parse_tuple_expression(ParserContext *ctx, Lexer *l, const char *type_name, ASTNode *expr);
 

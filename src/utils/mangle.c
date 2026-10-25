@@ -91,3 +91,46 @@ char *mangle_variant_symbol(const char *enum_c_name, const char *variant_name)
     snprintf(tmp, (size_t)len + 1, "%s__%s", enum_c_name, variant_name);
     return merge_underscores(tmp);
 }
+
+// Helper to sanitize type names for mangling (e.g. "int*" -> "intPtr")
+char *sanitize_mangled_name(const char *s)
+{
+    char *buf = xmalloc(strlen(s) * 4 + 1);
+
+    // Skip "struct " prefix if present to avoid "struct_" in mangled names
+    if (strncmp(s, "struct ", 7) == 0)
+    {
+        s += 7;
+    }
+
+    char *p = buf;
+    while (*s)
+    {
+        if (*s == '*')
+        {
+            strcpy(p, "Ptr");
+            p += 3;
+        }
+        else if (*s == '<' || *s == ',' || *s == ' ')
+        {
+            *p++ = '_';
+            *p++ = '_';
+        }
+        else if (*s == '>' || *s == '&')
+        {
+            // Skip > and & (often used in references) to keep names clean
+        }
+        else if ((*s >= 'a' && *s <= 'z') || (*s >= 'A' && *s <= 'Z') || (*s >= '0' && *s <= '9') ||
+                 *s == '_')
+        {
+            *p++ = *s;
+        }
+        else
+        {
+            *p++ = '_';
+        }
+        s++;
+    }
+    *p = 0;
+    return buf;
+}
