@@ -2,13 +2,19 @@ import "../core.zc"
 import "../string.zc"
 import "../mem.zc"
 
+include <sys/utsname.h>
+
+// The C struct from <sys/utsname.h>: its fields are 65 bytes on Linux and 256
+// on macOS, so the layout must come from the system header. The fields below
+// only tell zc which names exist; their size is used for nothing but the bounds
+// check of [0].
+@crepr("struct utsname")
 struct utsname {
     sysname: char[65];
     nodename: char[65];
     release: char[65];
     version: char[65];
     machine: char[65];
-    domainname: char[65];
 }
 
 extern fn uname(name: utsname*) -> int;
