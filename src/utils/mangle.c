@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "mangle.h"
 #include "arena.h"
-#include "constants.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -51,18 +50,22 @@ char *merge_underscores(const char *name)
 // mangled names readable.
 char *mangle_method_symbol(const char *struct_name, const char *trait_name, const char *method_name)
 {
-    char tmp[MAX_MANGLED_NAME_LEN];
+    // Measure first (snprintf with no buffer only counts), so names of any length fit.
+    int len = trait_name ? snprintf(NULL, 0, "%s__%s__%s", struct_name, trait_name, method_name)
+                         : snprintf(NULL, 0, "%s__%s", struct_name, method_name);
+
+    char *tmp = xmalloc((size_t)len + 1);
     if (trait_name)
     {
-        snprintf(tmp, sizeof(tmp), "%s__%s__%s", struct_name, trait_name, method_name);
+        snprintf(tmp, (size_t)len + 1, "%s__%s__%s", struct_name, trait_name, method_name);
     }
     else
     {
-        snprintf(tmp, sizeof(tmp), "%s__%s", struct_name, method_name);
+        snprintf(tmp, (size_t)len + 1, "%s__%s", struct_name, method_name);
     }
     if (method_name && method_name[0] == '_')
     {
-        return xstrdup(tmp);
+        return tmp;
     }
     return merge_underscores(tmp);
 }
