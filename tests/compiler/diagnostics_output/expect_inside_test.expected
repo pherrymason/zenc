@@ -1,0 +1,5 @@
+  TEST: checks ...   tests/compiler/diagnostics_output/expect_inside_test.zc:4: Expectation failed: n is 3
+FAIL
+
+1 test(s) failed
+[exit 1]
