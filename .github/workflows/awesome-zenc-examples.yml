@@ -25,7 +25,7 @@ jobs:
     - name: Checkout awesome-zenc
       uses: actions/checkout@v4
       with:
-        repository: zenc-lang/awesome-zenc
+        repository: pherrymason/awesome-zenc
         path: awesome-zenc
 
     - name: Install Dependencies
