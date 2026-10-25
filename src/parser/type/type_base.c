@@ -441,11 +441,7 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
                 }
                 zfree(unmangled_arg);
 
-                char *clean_arg = sanitize_mangled_name(first_arg_str);
-                size_t mangled_sz = strlen(name) + strlen(clean_arg) + 3;
-                char *mangled = xmalloc(mangled_sz);
-                snprintf(mangled, mangled_sz, "%s__%s", name, clean_arg);
-                zfree(clean_arg);
+                char *mangled = mangle_generic_name(name, &first_arg_str, 1);
 
                 zfree(ty->name);
                 ty->name = mangled;

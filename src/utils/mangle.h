@@ -47,4 +47,16 @@ char *mangle_variant_symbol(const char *enum_c_name, const char *variant_name);
  */
 char *sanitize_mangled_name(const char *s);
 
+/**
+ * @brief The C name of an instance of a generic: `Base__Arg1__Arg2`, each argument
+ *        sanitized (Vec<Foo*> is Vec__FooPtr). The name instantiate_generic registers.
+ */
+char *mangle_generic_name(const char *base, char **args, int count);
+
+/**
+ * @brief mangle_generic_name from the argument list as written between `<` and `>`
+ *        ("K, Vec<A, B>" is two arguments).
+ */
+char *mangle_generic_name_from_arg_list(const char *base, const char *arg_list);
+
 #endif // UTILS_MANGLE_H

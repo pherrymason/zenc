@@ -49,3 +49,29 @@ UTEST(mangle_variant_symbol, joins_the_enum_c_name_and_the_variant)
     ASSERT_STREQ("app_color__Red", mangle_variant_symbol("app_color", "Red"));
     ASSERT_STREQ("E__V", mangle_variant_symbol("E__", "__V"));
 }
+
+UTEST(sanitize_mangled_name, makes_a_type_fit_a_c_name)
+{
+    ASSERT_STREQ("intPtr", sanitize_mangled_name("int*"));
+    ASSERT_STREQ("Point", sanitize_mangled_name("struct Point"));
+    ASSERT_STREQ("Vec__int", sanitize_mangled_name("Vec<int>"));
+}
+
+// The name instantiate_generic registers: each argument sanitized on its own.
+UTEST(mangle_generic_name, joins_the_sanitized_arguments)
+{
+    char *one[] = {"Foo*"};
+    ASSERT_STREQ("Vec__FooPtr", mangle_generic_name("Vec", one, 1));
+    char *two[] = {"K", "V"};
+    ASSERT_STREQ("Map__K__V", mangle_generic_name("Map", two, 2));
+    ASSERT_STREQ("Map__K__V", mangle_generic_name("Map_", two, 2));
+}
+
+// The argument list is split at the commas outside a nested <>, so it gives the same
+// name as the arguments one by one (sanitizing "K, V" at once would give K____V).
+UTEST(mangle_generic_name_from_arg_list, splits_at_the_top_level_commas)
+{
+    ASSERT_STREQ("Map__K__V", mangle_generic_name_from_arg_list("Map", "K, V"));
+    ASSERT_STREQ("Map__K__Vec__A", mangle_generic_name_from_arg_list("Map", "K, Vec<A>"));
+    ASSERT_STREQ("Vec__int", mangle_generic_name_from_arg_list("Vec", " int "));
+}

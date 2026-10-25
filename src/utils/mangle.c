@@ -134,3 +134,91 @@ char *sanitize_mangled_name(const char *s)
     *p = 0;
     return buf;
 }
+
+// The C name of an instance of a generic, as instantiate_generic registers it: the base
+// without trailing underscores, then `__` and each argument sanitized, without merging.
+// Vec<Foo*> is Vec__FooPtr and Map<K, V> is Map__K__V.
+char *mangle_generic_name(const char *base, char **args, int count)
+{
+    size_t base_len = strlen(base);
+    while (base_len > 0 && base[base_len - 1] == '_')
+    {
+        base_len--;
+    }
+    char *out = xmalloc(base_len + 1);
+    memcpy(out, base, base_len);
+    out[base_len] = '\0';
+
+    for (int i = 0; i < count; i++)
+    {
+        char *clean = sanitize_mangled_name(args[i]);
+        size_t size = strlen(out) + 2 + strlen(clean) + 1;
+        char *next = xmalloc(size);
+        snprintf(next, size, "%s__%s", out, clean);
+        out = next;
+    }
+    return out;
+}
+
+// mangle_generic_name from the argument list as written between `<` and `>`: "K, Vec<A, B>"
+// has two arguments, split at the commas outside a nested `<>`, each without surrounding
+// spaces.
+char *mangle_generic_name_from_arg_list(const char *base, const char *arg_list)
+{
+    int count = 1;
+    int depth = 0;
+    for (const char *p = arg_list; *p; p++)
+    {
+        if (*p == '<')
+        {
+            depth++;
+        }
+        else if (*p == '>')
+        {
+            depth--;
+        }
+        else if (*p == ',' && depth == 0)
+        {
+            count++;
+        }
+    }
+
+    char **args = xmalloc((size_t)count * sizeof(char *));
+    int n = 0;
+    const char *start = arg_list;
+    depth = 0;
+    for (const char *p = arg_list;; p++)
+    {
+        if (*p == '<')
+        {
+            depth++;
+        }
+        else if (*p == '>')
+        {
+            depth--;
+        }
+        else if (*p == '\0' || (*p == ',' && depth == 0))
+        {
+            const char *end = p;
+            while (start < end && *start == ' ')
+            {
+                start++;
+            }
+            while (end > start && end[-1] == ' ')
+            {
+                end--;
+            }
+            size_t len = (size_t)(end - start);
+            args[n] = xmalloc(len + 1);
+            memcpy(args[n], start, len);
+            args[n][len] = '\0';
+            n++;
+            if (*p == '\0')
+            {
+                break;
+            }
+            start = p + 1;
+        }
+    }
+    return mangle_generic_name(base, args, n);
+}

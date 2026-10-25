@@ -862,7 +862,6 @@ void handle_expr_call(ParserContext *ctx, ASTNode *node)
 
             const char *normalized = normalize_type_name(base);
             char *mangled_base = (char *)normalized;
-            char base_buf[MAX_ERROR_MSG_LEN];
 
             char *lt = (char *)strchr(base, '<');
             if (lt)
@@ -879,12 +878,6 @@ void handle_expr_call(ParserContext *ctx, ASTNode *node)
                     strncpy(prefix, base, (size_t)(prefix_len));
                     prefix[prefix_len] = 0;
 
-                    char *p_end = prefix + strlen(prefix);
-                    while (p_end > prefix && *(p_end - 1) == '_')
-                    {
-                        *(--p_end) = '\0';
-                    }
-
                     char *args_ptr = xstrdup(lt + 1);
                     char *args_end = (char *)strrchr(args_ptr, '>');
                     if (args_end)
@@ -892,12 +885,8 @@ void handle_expr_call(ParserContext *ctx, ASTNode *node)
                         *args_end = 0;
                     }
 
-                    char *clean_arg = sanitize_mangled_name(args_ptr);
-                    snprintf(base_buf, sizeof(base_buf), "%s__%s", prefix, clean_arg);
-                    mangled_base = base_buf;
-
+                    mangled_base = mangle_generic_name_from_arg_list(prefix, args_ptr);
                     zfree(args_ptr);
-                    zfree(clean_arg);
                 }
             }
 
@@ -912,7 +901,6 @@ void handle_expr_call(ParserContext *ctx, ASTNode *node)
                     mangled_base = type_mangled;
                 }
 
-                char type_buf[MAX_ERROR_MSG_LEN];
                 char *t_lt = (char *)strchr(type, '<');
 
                 if (t_lt)
@@ -929,12 +917,6 @@ void handle_expr_call(ParserContext *ctx, ASTNode *node)
                         strncpy(prefix, type, (size_t)(p_len));
                         prefix[p_len] = 0;
 
-                        char *p_end = prefix + strlen(prefix);
-                        while (p_end > prefix && *(p_end - 1) == '_')
-                        {
-                            *(--p_end) = '\0';
-                        }
-
                         char *args_ptr = xstrdup(t_lt + 1);
                         char *args_end = (char *)strrchr(args_ptr, '>');
                         if (args_end)
@@ -942,12 +924,8 @@ void handle_expr_call(ParserContext *ctx, ASTNode *node)
                             *args_end = 0;
                         }
 
-                        char *clean_arg = sanitize_mangled_name(args_ptr);
-                        snprintf(type_buf, sizeof(type_buf), "%s__%s", prefix, clean_arg);
-                        type_mangled = type_buf;
-
+                        type_mangled = mangle_generic_name_from_arg_list(prefix, args_ptr);
                         zfree(args_ptr);
-                        zfree(clean_arg);
                     }
                 }
 

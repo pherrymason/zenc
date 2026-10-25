@@ -1287,11 +1287,7 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                         Token t_tok = lexer_peek(l);
                         instantiate_generic(ctx, gtpl->name, inferred, inferred, t_tok);
 
-                        char *clean = sanitize_mangled_name(inferred);
-                        char mangled_raw[MAX_MANGLED_NAME_LEN];
-                        snprintf(mangled_raw, sizeof(mangled_raw), "%s__%s", gtpl->name, clean);
-                        char *mangled = merge_underscores(mangled_raw);
-                        zfree(clean);
+                        char *mangled = mangle_generic_name(gtpl->name, &inferred, 1);
 
                         node->struct_init.struct_name = mangled;
                         struct_name = mangled;
