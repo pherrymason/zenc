@@ -10,4 +10,7 @@
 // parser context.
 ASTNode *parse_source(const char *src);
 
+// The parser context of the last parse_source call, to query its registries.
+ParserContext *parse_source_context(void);
+
 #endif
