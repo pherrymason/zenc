@@ -148,7 +148,9 @@ jobs:
       if: matrix.setup_zig
       uses: goto-bus-stop/setup-zig@v2
       with:
-        version: master
+        # A release, not master: a nightly can break the job on its own (0.18.0-dev
+        # did not know the runner CPU 'icelake_server').
+        version: 0.17.0
 
     - name: Install ccache
       if: runner.os == 'Linux'
