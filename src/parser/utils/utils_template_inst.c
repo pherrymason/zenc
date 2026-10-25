@@ -921,6 +921,7 @@ void instantiate_generic(ParserContext *ctx, const char *tpl, const char *arg,
     }
 
     ni->struct_node = struct_node_copy;
+    struct_registry_changed(ctx);
 
     if (struct_node_copy)
     {
@@ -936,6 +937,7 @@ void instantiate_generic(ParserContext *ctx, const char *tpl, const char *arg,
 
         struct_node_copy->next = ctx->instantiated_structs;
         ctx->instantiated_structs = struct_node_copy;
+        struct_registry_changed(ctx);
     }
 
     GenericImplTemplate *it = ctx->impl_templates;
@@ -1096,6 +1098,7 @@ void instantiate_generic_multi(ParserContext *ctx, const char *tpl, char **args,
 
         i->next = ctx->instantiated_structs;
         ctx->instantiated_structs = i;
+        struct_registry_changed(ctx);
     }
     else if (t->struct_node->kind == NODE_ENUM)
     {
@@ -1169,6 +1172,7 @@ void instantiate_generic_multi(ParserContext *ctx, const char *tpl, char **args,
 
         i->next = ctx->instantiated_structs;
         ctx->instantiated_structs = i;
+        struct_registry_changed(ctx);
     }
     zfree(m);
 }

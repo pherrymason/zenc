@@ -58,6 +58,93 @@ static ASTNode *struct_hash_lookup(ParserContext *ctx, const char *name)
     return NULL;
 }
 
+// Names find_struct_def did not find. A miss walks seven lists, and codegen
+// asks again and again for names that are no struct (int32_t, char*...). The
+// table is only valid while no struct or enum is registered:
+// struct_registry_changed bumps ctx->struct_registry_gen, and the table empties
+// itself when it sees a new value. A lookup also depends on strct.is_incomplete,
+// which is only set when a forward declaration is parsed (the full definition is
+// another node); code that changes it later must call struct_registry_changed.
+enum
+{
+    STRUCT_MISS_SIZE = 4096
+};
+struct StructMissCache
+{
+    unsigned int gen;
+    int count;
+    const char *names[STRUCT_MISS_SIZE];
+};
+
+void struct_registry_changed(ParserContext *ctx)
+{
+    ctx->struct_registry_gen++;
+}
+
+void struct_miss_cache_enable(ParserContext *ctx)
+{
+    if (!ctx->struct_misses)
+    {
+        ctx->struct_misses = xcalloc(1, sizeof(struct StructMissCache));
+        ctx->struct_misses->gen = ctx->struct_registry_gen;
+    }
+}
+
+// The miss table, emptied if a struct or enum was registered since it was
+// filled; NULL while the cache is off.
+static struct StructMissCache *struct_miss_table(ParserContext *ctx)
+{
+    struct StructMissCache *t = ctx->struct_misses;
+    if (t && t->gen != ctx->struct_registry_gen)
+    {
+        memset(t->names, 0, sizeof(t->names));
+        t->count = 0;
+        t->gen = ctx->struct_registry_gen;
+    }
+    return t;
+}
+
+static int struct_miss_has(ParserContext *ctx, const char *name)
+{
+    struct StructMissCache *t = struct_miss_table(ctx);
+    if (!t)
+    {
+        return 0;
+    }
+    unsigned int slot = struct_name_hash(name) & (STRUCT_MISS_SIZE - 1);
+    while (t->names[slot])
+    {
+        if (strcmp(t->names[slot], name) == 0)
+        {
+            return 1;
+        }
+        slot = (slot + 1) & (STRUCT_MISS_SIZE - 1);
+    }
+    return 0;
+}
+
+static void struct_miss_add(ParserContext *ctx, const char *name)
+{
+    struct StructMissCache *t = struct_miss_table(ctx);
+    if (!t)
+    {
+        return;
+    }
+    // Keep the table at most half full so probing stays short.
+    if (t->count >= STRUCT_MISS_SIZE / 2)
+    {
+        memset(t->names, 0, sizeof(t->names));
+        t->count = 0;
+    }
+    unsigned int slot = struct_name_hash(name) & (STRUCT_MISS_SIZE - 1);
+    while (t->names[slot])
+    {
+        slot = (slot + 1) & (STRUCT_MISS_SIZE - 1);
+    }
+    t->names[slot] = xstrdup(name);
+    t->count++;
+}
+
 #define CACHE_RESULT(node)                                                                         \
     do                                                                                             \
     {                                                                                              \
@@ -74,6 +161,7 @@ void add_to_struct_list(ParserContext *ctx, ASTNode *node)
     r->node = node;
     r->next = ctx->parsed_structs_list;
     ctx->parsed_structs_list = r;
+    struct_registry_changed(ctx);
 
     if (node->kind == NODE_STRUCT && node->strct.name)
     {
@@ -169,6 +257,7 @@ void add_to_enum_list(ParserContext *ctx, ASTNode *node)
     r->node = node;
     r->next = ctx->parsed_enums_list;
     ctx->parsed_enums_list = r;
+    struct_registry_changed(ctx);
 }
 
 void add_to_func_list(ParserContext *ctx, ASTNode *node)
@@ -371,6 +460,7 @@ void register_struct_def(ParserContext *ctx, const char *name, ASTNode *node)
     }
 
     d->node = node;
+    struct_registry_changed(ctx);
     struct_hash_insert(ctx, name, node);
 
     if (ctx->config->misra_mode)
@@ -434,6 +524,11 @@ ASTNode *find_struct_def(ParserContext *ctx, const char *name)
     }
 
     if (!ctx)
+    {
+        return NULL;
+    }
+
+    if (struct_miss_has(ctx, name))
     {
         return NULL;
     }
@@ -536,6 +631,7 @@ ASTNode *find_struct_def(ParserContext *ctx, const char *name)
         e = e->next;
     }
 
+    struct_miss_add(ctx, name);
     return NULL;
 }
 
