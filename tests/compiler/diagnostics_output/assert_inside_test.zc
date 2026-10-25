@@ -1,0 +1,8 @@
+// ARGS: run -q
+test "first" {
+    assert(1 == 2, "boom");
+}
+
+test "second" {
+    assert(1 == 1, "fine");
+}
