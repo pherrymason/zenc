@@ -427,10 +427,12 @@ static int compile_program(ZenCompiler *compiler)
         char exe_path[1024];
         if (z_is_windows())
         {
-            snprintf(exe_path, sizeof(exe_path), "%s", outfile);
+            // The C compiler adds .exe to an output without it: run that file, so a file
+            // named like the output without .exe is not run instead.
+            snprintf(exe_path, sizeof(exe_path), "%s.exe", outfile);
             if (access(exe_path, F_OK) != 0)
             {
-                snprintf(exe_path, sizeof(exe_path), "%s.exe", outfile);
+                snprintf(exe_path, sizeof(exe_path), "%s", outfile);
             }
         }
         else
