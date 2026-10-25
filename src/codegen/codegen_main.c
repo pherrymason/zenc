@@ -10,74 +10,76 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Helper: Check if a struct depends on another struct/enum by-value.
-static int struct_depends_on(ParserContext *ctx, ASTNode *s1, const char *target_name)
+// The by-value field types (or variant payload types) of a struct or enum,
+// resolved once. topo_sort_structs compares every pair of nodes, so resolving
+// aliases and mangling names inside that loop made it quadratic in the work per
+// field.
+typedef struct
 {
-    if (!s1)
+    int count;
+    char **mangled;     // Resolved and mangled type, compared with the dependency name.
+    const char **clean; // Resolved type before mangling (enums check the next character).
+    int is_enum;
+} NodeDeps;
+
+static const char *strip_c_tag(const char *type_str)
+{
+    if (strncmp(type_str, "struct ", 7) == 0)
     {
-        return 0;
+        return type_str + 7;
+    }
+    if (strncmp(type_str, "enum ", 5) == 0)
+    {
+        return type_str + 5;
+    }
+    if (strncmp(type_str, "union ", 6) == 0)
+    {
+        return type_str + 6;
+    }
+    return type_str;
+}
+
+static void node_deps_add(ParserContext *ctx, NodeDeps *deps, const char *type_str)
+{
+    // Pointers do not create an ordering dependency.
+    if (strchr(type_str, '*'))
+    {
+        return;
     }
 
-    // Check structs
-    if (s1->kind == NODE_STRUCT)
+    const char *clean = strip_c_tag(type_str);
+    const char *alias = find_type_alias(ctx, clean);
+    if (alias)
     {
-        ASTNode *field = s1->strct.fields;
+        clean = alias;
+    }
+
+    deps->mangled = xrealloc(deps->mangled, (size_t)(deps->count + 1) * sizeof(char *));
+    deps->clean = xrealloc(deps->clean, (size_t)(deps->count + 1) * sizeof(char *));
+    deps->mangled[deps->count] = replace_string_type(clean);
+    deps->clean[deps->count] = clean;
+    deps->count++;
+}
+
+static void node_deps_build(ParserContext *ctx, ASTNode *node, NodeDeps *deps)
+{
+    memset(deps, 0, sizeof(*deps));
+    if (node->kind == NODE_STRUCT)
+    {
+        ASTNode *field = node->strct.fields;
         while (field)
         {
             if (field->kind == NODE_FIELD && field->field.type)
             {
-                char *type_str = field->field.type;
-
-                // Skip pointers - they don't create ordering dependency.
-                if (strchr(type_str, '*'))
-                {
-                    field = field->next;
-                    continue;
-                }
-
-                // Clean type string (remove struct/enum prefixes)
-                const char *clean = type_str;
-                if (strncmp(clean, "struct ", 7) == 0)
-                {
-                    clean += 7;
-                }
-                else if (strncmp(clean, "enum ", 5) == 0)
-                {
-                    clean += 5;
-                }
-                else if (strncmp(clean, "union ", 6) == 0)
-                {
-                    clean += 6;
-                }
-
-                if (ctx)
-                {
-                    const char *alias = find_type_alias(ctx, clean);
-                    if (alias)
-                    {
-                        clean = alias;
-                    }
-                }
-
-                char *mangled_clean = replace_string_type(clean);
-
-                // Check for match
-                size_t len = strlen(target_name);
-                int is_match = (strncmp(mangled_clean, target_name, (size_t)(len)) == 0);
-                zfree(mangled_clean);
-
-                if (is_match)
-                {
-                    return 1;
-                }
+                node_deps_add(ctx, deps, field->field.type);
             }
             field = field->next;
         }
     }
-    // Check enums (ADTs)
-    else if (s1->kind == NODE_ENUM)
+    else if (node->kind == NODE_ENUM)
     {
-        ASTNode *variant = s1->enm.variants;
+        deps->is_enum = 1;
+        ASTNode *variant = node->enm.variants;
         while (variant)
         {
             if (variant->kind == NODE_ENUM_VARIANT && variant->variant.payload)
@@ -86,58 +88,34 @@ static int struct_depends_on(ParserContext *ctx, ASTNode *s1, const char *target
                     type_to_c_string(variant->variant.payload, ctx->config->misra_mode);
                 if (type_str)
                 {
-                    if (strchr(type_str, '*'))
-                    {
-                        zfree(type_str);
-                        variant = variant->next;
-                        continue;
-                    }
-
-                    const char *clean = type_str;
-                    if (strncmp(clean, "struct ", 7) == 0)
-                    {
-                        clean += 7;
-                    }
-                    else if (strncmp(clean, "enum ", 5) == 0)
-                    {
-                        clean += 5;
-                    }
-                    else if (strncmp(clean, "union ", 6) == 0)
-                    {
-                        clean += 6;
-                    }
-
-                    if (ctx)
-                    {
-                        const char *alias = find_type_alias(ctx, clean);
-                        if (alias)
-                        {
-                            clean = alias;
-                        }
-                    }
-                    char *mangled_clean = replace_string_type(clean);
-
-                    // Check for match
-                    size_t len = strlen(target_name);
-                    int is_match = (strncmp(mangled_clean, target_name, (size_t)(len)) == 0);
-                    zfree(mangled_clean);
-
-                    if (is_match)
-                    {
-                        char next = clean[len];
-                        if (next == 0 || next == '[' || isspace(next))
-                        {
-                            zfree(type_str);
-                            return 1;
-                        }
-                    }
-                    zfree(type_str);
+                    node_deps_add(ctx, deps, type_str);
                 }
             }
             variant = variant->next;
         }
     }
+}
 
+// Whether a node depends by value on the struct or enum named target_name.
+static int node_deps_match(const NodeDeps *deps, const char *target_name)
+{
+    size_t len = strlen(target_name);
+    for (int k = 0; k < deps->count; k++)
+    {
+        if (strncmp(deps->mangled[k], target_name, len) != 0)
+        {
+            continue;
+        }
+        if (!deps->is_enum)
+        {
+            return 1;
+        }
+        char next = deps->clean[k][len];
+        if (next == 0 || next == '[' || isspace(next))
+        {
+            return 1;
+        }
+    }
     return 0;
 }
 
@@ -248,6 +226,12 @@ static ASTNode *topo_sort_structs(ParserContext *ctx, ASTNode *head)
     int idx = 0;
     collect_sortable_nodes(head, nodes, &idx);
 
+    NodeDeps *deps = xcalloc((size_t)count, sizeof(NodeDeps));
+    for (int k = 0; k < count; k++)
+    {
+        node_deps_build(ctx, nodes[k], &deps[k]);
+    }
+
     // Build order array (indices in emission order).
     int *order = malloc((size_t)count * sizeof(int));
     int order_idx = 0;
@@ -297,7 +281,7 @@ static ASTNode *topo_sort_structs(ParserContext *ctx, ASTNode *head)
                     dep_name = nodes[j]->enm.name;
                 }
 
-                if (dep_name && struct_depends_on(ctx, nodes[i], dep_name))
+                if (dep_name && node_deps_match(&deps[i], dep_name))
                 {
                     can_emit = 0;
                     break;

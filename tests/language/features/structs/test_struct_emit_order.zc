@@ -1,0 +1,54 @@
+// language/features/structs: test_struct_emit_order
+// Structs and enums are emitted to C in dependency order, whatever their order
+// in the source. A type used by value (a field, an array field, an alias or an
+// enum payload) must be emitted first; one used through a pointer need not, so
+// two structs may point at each other.
+alias Meters = Length;
+
+struct Route {
+    start: Point;
+    legs: Length[2];
+    total: Meters;
+    shape: Shape;
+    next: Route*;
+    owner: Owner*;
+}
+
+struct Owner {
+    route: Route*;
+    name_len: int;
+}
+
+enum Shape { Dot(Point), Line(Segment), Empty }
+
+struct Segment { a: Point; b: Point; }
+
+// A name that starts like another type must not confuse the order.
+struct PointPair { first: Point; second: Point; }
+
+struct Length { value: int; }
+
+struct Point { x: int; y: int; }
+
+test "struct_emit_order" {
+    let p = Point { x: 1, y: 2 };
+    let seg = Segment { a: p, b: Point { x: 3, y: 4 } };
+    let r = Route {
+        start: p,
+        legs: [Length { value: 5 }, Length { value: 6 }],
+        total: Length { value: 11 },
+        shape: Shape::Line(seg),
+        next: NULL,
+        owner: NULL
+    };
+    let pair = PointPair { first: p, second: seg.b };
+
+    assert(r.start.y == 2, "field");
+    assert(r.legs[1].value == 6, "array field");
+    assert(r.total.value == 11, "alias");
+    assert(pair.second.x == 3, "prefix name");
+    match r.shape {
+        Shape::Line(s) => { assert(s.b.y == 4, "enum payload"); },
+        _ => { assert(false, "wrong variant"); },
+    }
+}
