@@ -133,9 +133,7 @@ static int may_be_struct(Type *t)
 static FuncSig *find_operator_method(ParserContext *ctx, const char *struct_name,
                                      const char *method, char **mangled_out)
 {
-    char buf[MAX_ERROR_MSG_LEN];
-    snprintf(buf, sizeof(buf), "%s__%s", struct_name, method);
-    char *mangled = merge_underscores(buf);
+    char *mangled = mangle_method_symbol(struct_name, NULL, method);
     FuncSig *sig = find_func(ctx, mangled);
 
     StructRef *ref = ctx->parsed_impls_list;
@@ -146,10 +144,8 @@ static FuncSig *find_operator_method(ParserContext *ctx, const char *struct_name
             const char *t_struct = ref->node->impl_trait.target_type;
             if (t_struct && strcmp(t_struct, struct_name) == 0)
             {
-                char buf_t[MAX_ERROR_MSG_LEN];
-                snprintf(buf_t, sizeof(buf_t), "%s__%s__%s", struct_name,
-                         ref->node->impl_trait.trait_name, method);
-                char *trait_mangled = merge_underscores(buf_t);
+                char *trait_mangled =
+                    mangle_method_symbol(struct_name, ref->node->impl_trait.trait_name, method);
                 sig = find_func(ctx, trait_mangled);
                 if (sig)
                 {
@@ -664,9 +660,7 @@ static ASTNode *parse_expr_prec_impl(ParserContext *ctx, Lexer *l, Precedence mi
 
             if (struct_name)
             {
-                char buf[MAX_ERROR_MSG_LEN];
-                snprintf(buf, sizeof(buf), "%s__%s", struct_name, method);
-                char *mangled = merge_underscores(buf);
+                char *mangled = mangle_method_symbol(struct_name, NULL, method);
 
                 if (find_func(ctx, mangled))
                 {
@@ -1914,9 +1908,7 @@ static ASTNode *parse_expr_prec_impl(ParserContext *ctx, Lexer *l, Precedence mi
 
                 if (struct_name)
                 {
-                    char buf[MAX_ERROR_MSG_LEN];
-                    snprintf(buf, sizeof(buf), "%s__%s", struct_name, node->member.field);
-                    char *mangled = merge_underscores(buf);
+                    char *mangled = mangle_method_symbol(struct_name, NULL, node->member.field);
 
                     FuncSig *sig = find_func(ctx, mangled);
 
@@ -1931,11 +1923,9 @@ static ASTNode *parse_expr_prec_impl(ParserContext *ctx, Lexer *l, Precedence mi
                                 const char *t_struct = ref->node->impl_trait.target_type;
                                 if (t_struct && strcmp(t_struct, struct_name) == 0)
                                 {
-                                    char buf_trait[MAX_ERROR_MSG_LEN];
-                                    snprintf(buf_trait, sizeof(buf_trait), "%s__%s__%s",
-                                             struct_name, ref->node->impl_trait.trait_name,
-                                             node->member.field);
-                                    char *trait_mangled = merge_underscores(buf_trait);
+                                    char *trait_mangled = mangle_method_symbol(
+                                        struct_name, ref->node->impl_trait.trait_name,
+                                        node->member.field);
 
                                     if (find_func(ctx, trait_mangled))
                                     {
@@ -2060,9 +2050,7 @@ static ASTNode *parse_expr_prec_impl(ParserContext *ctx, Lexer *l, Precedence mi
 
                     if (struct_name)
                     {
-                        char buf[MAX_ERROR_MSG_LEN];
-                        snprintf(buf, sizeof(buf), "%s__%s", struct_name, node->member.field);
-                        full_name = merge_underscores(buf);
+                        full_name = mangle_method_symbol(struct_name, NULL, node->member.field);
 
                         // Join types
                         size_t ac_sz = 1024, au_sz = 1024;
@@ -2429,9 +2417,7 @@ static ASTNode *parse_expr_prec_impl(ParserContext *ctx, Lexer *l, Precedence mi
 
                 if (struct_name)
                 {
-                    char buf_m[MAX_ERROR_MSG_LEN];
-                    snprintf(buf_m, sizeof(buf_m), "%s__%s", struct_name, inner_method);
-                    char *mangled = merge_underscores(buf_m);
+                    char *mangled = mangle_method_symbol(struct_name, NULL, inner_method);
                     FuncSig *sig = find_func(ctx, mangled);
                     if (sig)
                     {

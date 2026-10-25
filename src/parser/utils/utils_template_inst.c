@@ -660,10 +660,7 @@ void instantiate_methods(ParserContext *ctx, GenericImplTemplate *it,
                 }
             }
 
-            char *temp = xmalloc(strlen(mangled_struct_name) + strlen(original_method) + 3);
-            sprintf(temp, "%s__%s", mangled_struct_name, original_method); /* safe */
-            char *new_name = merge_underscores(temp);
-            zfree(temp);
+            char *new_name = mangle_method_symbol(mangled_struct_name, NULL, original_method);
             zfree(meth->func.name);
             meth->func.name = new_name;
         }

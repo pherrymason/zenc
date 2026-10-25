@@ -80,10 +80,7 @@ static MixinResolution resolve_mixin_method(ParserContext *ctx, const char *stru
 {
     MixinResolution res = {xstrdup(struct_name), NULL};
 
-    char target_func_raw[MAX_FUNC_NAME_LEN];
-    snprintf(target_func_raw, sizeof(target_func_raw), "%s__%s", struct_name,
-             method_name); /* TODO: check buffer size */
-    char *target_func = merge_underscores(target_func_raw);
+    char *target_func = mangle_method_symbol(struct_name, NULL, method_name);
 
     if (!find_func(ctx, target_func))
     {
@@ -92,10 +89,8 @@ static MixinResolution resolve_mixin_method(ParserContext *ctx, const char *stru
         {
             for (int k = 0; k < mixin_def->strct.used_struct_count; k++)
             {
-                char mixin_func_raw[128];
-                snprintf(mixin_func_raw, 128, "%s__%s", mixin_def->strct.used_structs[k],
-                         method_name);
-                char *mixin_func = merge_underscores(mixin_func_raw);
+                char *mixin_func =
+                    mangle_method_symbol(mixin_def->strct.used_structs[k], NULL, method_name);
                 if (find_func(ctx, mixin_func))
                 {
                     zfree(res.final_struct);
@@ -267,9 +262,7 @@ char *rewrite_expr_methods(ParserContext *ctx, char *raw)
                 if (final_cast)
                 {
                     // Mixin call: Foo__method((Foo*)&obj
-                    char call_buf[MAX_ERROR_MSG_LEN];
-                    snprintf(call_buf, sizeof(call_buf), "%s__%s", final_struct, final_method);
-                    char *mangled_call = merge_underscores(call_buf);
+                    char *mangled_call = mangle_method_symbol(final_struct, NULL, final_method);
 
                     dest += sprintf(dest, "%s(%s%s", mangled_call, final_cast,
                                     acc); /* TODO: check buffer size */
@@ -278,9 +271,7 @@ char *rewrite_expr_methods(ParserContext *ctx, char *raw)
                 else
                 {
                     // Standard call
-                    char call_buf[MAX_ERROR_MSG_LEN];
-                    snprintf(call_buf, sizeof(call_buf), "%s__%s", final_struct, final_method);
-                    char *mangled_call = merge_underscores(call_buf);
+                    char *mangled_call = mangle_method_symbol(final_struct, NULL, final_method);
 
                     dest += sprintf(dest, "%s(%s%s", mangled_call, is_ptr ? "" : "&",
                                     acc); /* TODO: check buffer size */
@@ -334,9 +325,7 @@ char *rewrite_expr_methods(ParserContext *ctx, char *raw)
 
                 if (final_cast)
                 {
-                    char call_buf[MAX_ERROR_MSG_LEN];
-                    snprintf(call_buf, sizeof(call_buf), "%s__%s", final_struct, final_method);
-                    char *mangled_call = merge_underscores(call_buf);
+                    char *mangled_call = mangle_method_symbol(final_struct, NULL, final_method);
 
                     dest += sprintf(dest, "%s(%s%s)", mangled_call, final_cast,
                                     acc); /* TODO: check buffer size */
@@ -344,9 +333,7 @@ char *rewrite_expr_methods(ParserContext *ctx, char *raw)
                 }
                 else
                 {
-                    char call_buf[MAX_ERROR_MSG_LEN];
-                    snprintf(call_buf, sizeof(call_buf), "%s__%s", final_struct, final_method);
-                    char *mangled_call = merge_underscores(call_buf);
+                    char *mangled_call = mangle_method_symbol(final_struct, NULL, final_method);
 
                     dest += sprintf(dest, "%s(%s%s)", mangled_call, is_ptr ? "" : "&",
                                     acc); /* TODO: check buffer size */
@@ -494,17 +481,13 @@ char *rewrite_expr_methods(ParserContext *ctx, char *raw)
                         ASTNode *sdef = find_struct_def(ctx, use_name);
                         if (sdef)
                         {
-                            char mangled_raw[MAX_MANGLED_NAME_LEN];
-                            snprintf(mangled_raw, sizeof(mangled_raw), "%s__%s", use_name, method);
-                            char *mangled_merged = merge_underscores(mangled_raw);
+                            char *mangled_merged = mangle_method_symbol(use_name, NULL, method);
                             strncpy(mangled, mangled_merged, sizeof(mangled) - 1);
                             mangled[sizeof(mangled) - 1] = 0;
                         }
                         else
                         {
-                            char mangled_raw[MAX_MANGLED_NAME_LEN];
-                            snprintf(mangled_raw, sizeof(mangled_raw), "%s__%s", use_name, method);
-                            char *mangled_merged = merge_underscores(mangled_raw);
+                            char *mangled_merged = mangle_method_symbol(use_name, NULL, method);
                             strncpy(mangled, mangled_merged, sizeof(mangled) - 1);
                             mangled[sizeof(mangled) - 1] = 0;
                         }

@@ -446,10 +446,7 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
 
                             if (is_variant)
                             {
-                                char v_mangled_raw[MAX_MANGLED_NAME_LEN];
-                                snprintf(v_mangled_raw, sizeof(v_mangled_raw), "%s__%s", acc,
-                                         method_name);
-                                char *v_mangled = merge_underscores(v_mangled_raw);
+                                char *v_mangled = mangle_method_symbol(acc, NULL, method_name);
 
                                 if (!find_func(ctx, v_mangled))
                                 {
@@ -457,10 +454,8 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                                         find_method_owner_type_scoped(ctx, acc, method_name);
                                     if (concrete_type)
                                     {
-                                        char concrete_raw[MAX_MANGLED_NAME_LEN];
-                                        snprintf(concrete_raw, sizeof(concrete_raw), "%s__%s",
-                                                 concrete_type, method_name);
-                                        char *concrete = merge_underscores(concrete_raw);
+                                        char *concrete =
+                                            mangle_method_symbol(concrete_type, NULL, method_name);
                                         if (find_func(ctx, concrete))
                                         {
                                             zfree(acc);
@@ -483,10 +478,7 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                             }
                             else
                             {
-                                char direct_raw[MAX_MANGLED_NAME_LEN];
-                                snprintf(direct_raw, sizeof(direct_raw), "%s__%s", acc,
-                                         method_name);
-                                char *direct = merge_underscores(direct_raw);
+                                char *direct = mangle_method_symbol(acc, NULL, method_name);
 
                                 if (find_func(ctx, direct))
                                 {
@@ -500,10 +492,8 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                                         find_method_owner_type_scoped(ctx, acc, method_name);
                                     if (concrete_type)
                                     {
-                                        char concrete_raw[MAX_MANGLED_NAME_LEN];
-                                        snprintf(concrete_raw, sizeof(concrete_raw), "%s__%s",
-                                                 concrete_type, method_name);
-                                        char *concrete = merge_underscores(concrete_raw);
+                                        char *concrete =
+                                            mangle_method_symbol(concrete_type, NULL, method_name);
                                         if (find_func(ctx, concrete))
                                         {
                                             zfree(acc);
@@ -526,18 +516,8 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                                             strcmp(ref->node->impl_trait.target_type, acc) == 0)
                                         {
                                             const char *tname = ref->node->impl_trait.trait_name;
-                                            const char *sep = (strcmp(tname, "Drop") == 0 ||
-                                                               strcmp(tname, "Clone") == 0 ||
-                                                               strcmp(tname, "Eq") == 0 ||
-                                                               strcmp(tname, "Copy") == 0 ||
-                                                               strcmp(tname, "Iterable") == 0)
-                                                                  ? "_"
-                                                                  : "__";
-
-                                            char t_m_raw[MAX_MANGLED_NAME_LEN];
-                                            snprintf(t_m_raw, sizeof(t_m_raw), "%s__%s%s%s", acc,
-                                                     tname, sep, method_name);
-                                            char *t_m = merge_underscores(t_m_raw);
+                                            char *t_m =
+                                                mangle_method_symbol(acc, tname, method_name);
 
                                             if (find_func(ctx, t_m))
                                             {
@@ -593,10 +573,7 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                                         }
                                         if (is_v)
                                         {
-                                            char tmp_raw[MAX_MANGLED_NAME_LEN];
-                                            snprintf(tmp_raw, sizeof(tmp_raw), "%s__%s", acc,
-                                                     method_name);
-                                            tmp = merge_underscores(tmp_raw);
+                                            tmp = mangle_method_symbol(acc, NULL, method_name);
                                             handled_as_generic = 1;
                                         }
                                     }
@@ -670,10 +647,8 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                                                                                       mbuf);
                                                     if (concrete_type)
                                                     {
-                                                        char cr[MAX_MANGLED_NAME_LEN];
-                                                        snprintf(cr, sizeof(cr), "%s__%s",
-                                                                 concrete_type, mbuf);
-                                                        char *concrete = merge_underscores(cr);
+                                                        char *concrete = mangle_method_symbol(
+                                                            concrete_type, NULL, mbuf);
                                                         if (find_func(ctx, concrete))
                                                         {
                                                             tmp = concrete;
@@ -719,10 +694,8 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                                                                                       mbuf);
                                                     if (concrete_type)
                                                     {
-                                                        char cr[MAX_MANGLED_NAME_LEN];
-                                                        snprintf(cr, sizeof(cr), "%s__%s",
-                                                                 concrete_type, mbuf);
-                                                        char *concrete = merge_underscores(cr);
+                                                        char *concrete = mangle_method_symbol(
+                                                            concrete_type, NULL, mbuf);
                                                         if (find_func(ctx, concrete))
                                                         {
                                                             tmp = concrete;

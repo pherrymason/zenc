@@ -1404,10 +1404,7 @@ char *infer_type(ParserContext *ctx, ASTNode *node)
                     base += 7;
                 }
 
-                char func_base[MAX_MANGLED_NAME_LEN];
-                snprintf(func_base, sizeof(func_base), "%s__%s", base,
-                         node->call.callee->member.field);
-                char *func_name = merge_underscores(func_base);
+                char *func_name = mangle_method_symbol(base, NULL, node->call.callee->member.field);
 
                 FuncSig *sig = find_func(ctx, func_name);
 
