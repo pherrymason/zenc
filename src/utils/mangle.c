@@ -80,3 +80,14 @@ char *mangle_module_symbol(const char *module_prefix, const char *name)
     snprintf(out, (size_t)len + 1, "%s__%s", module_prefix, name);
     return out;
 }
+
+// The C name of an enum variant: `Enum__Variant`, the constructor function or, for a
+// variant without data, its value; its tag is that name plus `_Tag`. enum_c_name is the
+// name the enum has in C (its link_name, if it has one).
+char *mangle_variant_symbol(const char *enum_c_name, const char *variant_name)
+{
+    int len = snprintf(NULL, 0, "%s__%s", enum_c_name, variant_name);
+    char *tmp = xmalloc((size_t)len + 1);
+    snprintf(tmp, (size_t)len + 1, "%s__%s", enum_c_name, variant_name);
+    return merge_underscores(tmp);
+}

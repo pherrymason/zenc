@@ -147,9 +147,7 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
             else
             {
                 // Regular namespace or enum variant
-                size_t mer_sz = strlen(name) + strlen(resolved_suffix) + 3;
-                merged = xmalloc(mer_sz);
-                snprintf(merged, mer_sz, "%s__%s", name, resolved_suffix);
+                merged = mangle_module_symbol(name, resolved_suffix);
             }
 
             zfree(name);

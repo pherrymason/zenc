@@ -42,3 +42,10 @@ UTEST(mangle_module_symbol, joins_without_merging)
     ASSERT_STREQ("util__parse", mangle_module_symbol("util", "parse"));
     ASSERT_STREQ("util____internal", mangle_module_symbol("util", "__internal"));
 }
+
+UTEST(mangle_variant_symbol, joins_the_enum_c_name_and_the_variant)
+{
+    ASSERT_STREQ("Color__Red", mangle_variant_symbol("Color", "Red"));
+    ASSERT_STREQ("app_color__Red", mangle_variant_symbol("app_color", "Red"));
+    ASSERT_STREQ("E__V", mangle_variant_symbol("E__", "__V"));
+}

@@ -174,14 +174,8 @@ ASTNode *parse_enum(ParserContext *ctx, Lexer *l, const char *link_name, int is_
             va->variant.payload_count = tuple_count ? tuple_count : (payload ? 1 : 0);
 
             // Register Variant (Mangled name to avoid collisions: Result_Ok)
-            size_t mangled_sz = strlen(ename) + strlen(vname) + 3;
             char *base_for_mangling = link_name ? (char *)link_name : ename;
-            mangled_sz = strlen(base_for_mangling) + strlen(vname) + 3;
-
-            char *mangled_tmp = xmalloc(mangled_sz);
-            snprintf(mangled_tmp, mangled_sz, "%s__%s", base_for_mangling, vname);
-            char *mangled = merge_underscores(mangled_tmp);
-            zfree(mangled_tmp);
+            char *mangled = mangle_variant_symbol(base_for_mangling, vname);
             register_enum_variant(ctx, vname, ename, va->variant.tag_id);
 
             // Register Constructor Function Signature

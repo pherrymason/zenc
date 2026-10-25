@@ -35,4 +35,10 @@ char *mangle_method_symbol(const char *struct_name, const char *trait_name,
  */
 char *mangle_module_symbol(const char *module_prefix, const char *name);
 
+/**
+ * @brief The C name of an enum variant: `Enum__Variant` (its tag adds `_Tag`).
+ *        enum_c_name is the enum's name in C: its link_name, if it has one.
+ */
+char *mangle_variant_symbol(const char *enum_c_name, const char *variant_name);
+
 #endif // UTILS_MANGLE_H
