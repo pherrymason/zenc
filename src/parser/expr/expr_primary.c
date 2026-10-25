@@ -608,10 +608,8 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                                             }
                                             if (is_variant)
                                             {
-                                                char tmp_raw[MAX_MANGLED_NAME_LEN];
-                                                snprintf(tmp_raw, sizeof(tmp_raw), "%s__%.*s", acc,
-                                                         (int)suffix.len, suffix.start);
-                                                char *direct = merge_underscores(tmp_raw);
+                                                char *direct = mangle_variant_symbol(
+                                                    acc, token_strdup(suffix));
                                                 // Do not resolve a generic-dependent path (e.g.
                                                 // Option__V) to an existing concrete instantiation:
                                                 // the concrete arg is a placeholder substituted at
@@ -655,10 +653,8 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                                             }
                                             else
                                             {
-                                                char tmp_raw[MAX_MANGLED_NAME_LEN];
-                                                snprintf(tmp_raw, sizeof(tmp_raw), "%s__%.*s", acc,
-                                                         (int)suffix.len, suffix.start);
-                                                char *direct = merge_underscores(tmp_raw);
+                                                char *direct = mangle_method_symbol(
+                                                    acc, NULL, token_strdup(suffix));
                                                 // Do not resolve a generic-dependent path (e.g.
                                                 // Option__V) to an existing concrete instantiation:
                                                 // the concrete arg is a placeholder substituted at
@@ -710,10 +706,8 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
 
                             if (!handled_as_generic)
                             {
-                                char combined_raw[MAX_MANGLED_NAME_LEN];
-                                snprintf(combined_raw, sizeof(combined_raw), "%s__%.*s", acc,
-                                         (int)suffix.len, suffix.start);
-                                char *combined = merge_underscores(combined_raw);
+                                char *combined =
+                                    mangle_method_symbol(acc, NULL, token_strdup(suffix));
                                 zfree(acc);
                                 acc = combined;
                                 tmp = acc;
@@ -1429,11 +1423,8 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                                         f_self->var_decl.name = xstrdup("self");
                                         f_self->var_decl.init_expr = def;
 
-                                        char v_raw[MAX_MANGLED_NAME_LEN];
-                                        snprintf(v_raw, sizeof(v_raw), "%s__%s__VTable",
-                                                 inner->name, /* TODO: check buffer size */
-                                                 expected->name);
-                                        char *vtable_name = merge_underscores(v_raw);
+                                        char *vtable_name =
+                                            mangle_vtable_symbol(inner->name, expected->name);
 
                                         ASTNode *vtable_var = ast_create(NODE_EXPR_VAR);
                                         vtable_var->var_ref.name = xstrdup(vtable_name);
@@ -1470,11 +1461,8 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                                 f_self->var_decl.name = xstrdup("self");
                                 f_self->var_decl.init_expr = def;
 
-                                char v_raw[MAX_MANGLED_NAME_LEN];
-                                snprintf(v_raw, sizeof(v_raw), "%s__%s__VTable",
-                                         arg_type->inner->name, /* TODO: check buffer size */
-                                         expected->name);
-                                char *vtable_name = merge_underscores(v_raw);
+                                char *vtable_name =
+                                    mangle_vtable_symbol(arg_type->inner->name, expected->name);
 
                                 ASTNode *vtable_var = ast_create(NODE_EXPR_VAR);
                                 vtable_var->var_ref.name = xstrdup(vtable_name);

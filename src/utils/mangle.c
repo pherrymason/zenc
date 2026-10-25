@@ -222,3 +222,14 @@ char *mangle_generic_name_from_arg_list(const char *base, const char *arg_list)
     }
     return mangle_generic_name(base, args, n);
 }
+
+// The C name of the vtable of a trait for a struct: `Struct__Trait__VTable`, as codegen
+// defines it (without merging underscores), so a trait object built in the parser points at
+// the same symbol.
+char *mangle_vtable_symbol(const char *struct_name, const char *trait_name)
+{
+    int len = snprintf(NULL, 0, "%s__%s__VTable", struct_name, trait_name);
+    char *out = xmalloc((size_t)len + 1);
+    snprintf(out, (size_t)len + 1, "%s__%s__VTable", struct_name, trait_name);
+    return out;
+}

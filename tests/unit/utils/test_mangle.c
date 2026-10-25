@@ -75,3 +75,9 @@ UTEST(mangle_generic_name_from_arg_list, splits_at_the_top_level_commas)
     ASSERT_STREQ("Map__K__Vec__A", mangle_generic_name_from_arg_list("Map", "K, Vec<A>"));
     ASSERT_STREQ("Vec__int", mangle_generic_name_from_arg_list("Vec", " int "));
 }
+
+// The name codegen defines for a trait object's vtable, without merging underscores.
+UTEST(mangle_vtable_symbol, struct_trait_and_suffix)
+{
+    ASSERT_STREQ("Circle__Shape__VTable", mangle_vtable_symbol("Circle", "Shape"));
+}

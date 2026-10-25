@@ -555,7 +555,8 @@ static void emit_trait_wrappers_internal(ParserContext *ctx, ASTNode *node,
                 const char *orig = parse_original_method_name(m->func.name);
                 int is_const_self = (m->func.count > 0 && m->func.arg_types &&
                                      m->func.arg_types[0] && m->func.arg_types[0]->is_const);
-                EMIT(ctx, "%s %s__%s(%s%s* self", ret_sub, node->trait.name, orig,
+                EMIT(ctx, "%s %s(%s%s* self", ret_sub,
+                     mangle_method_symbol(node->trait.name, NULL, orig),
                      is_const_self ? "const " : "", node->trait.name);
 
                 if (m->func.args && strlen(m->func.args) > 0)

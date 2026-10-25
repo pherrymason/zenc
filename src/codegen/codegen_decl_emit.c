@@ -557,7 +557,7 @@ void emit_impl_vtables(ParserContext *ctx)
                 continue;
             }
 
-            EMIT(ctx, "%s_VTable %s__%s__VTable = {", trait, strct, trait);
+            EMIT(ctx, "%s_VTable %s = {", trait, mangle_vtable_symbol(strct, trait));
 
             ASTNode *m = node->impl_trait.methods;
             while (m)
