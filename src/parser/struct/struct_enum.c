@@ -240,9 +240,7 @@ ASTNode *parse_enum(ParserContext *ctx, Lexer *l, const char *link_name, int is_
     // Auto-prefix enum name if in module context
     if (ctx->imports.current_module_prefix && !gp)
     { // Don't prefix generic templates
-        size_t pref_len = strlen(ctx->imports.current_module_prefix) + strlen(ename) + 3;
-        char *prefixed_name = xmalloc(pref_len);
-        snprintf(prefixed_name, pref_len, "%s__%s", ctx->imports.current_module_prefix, ename);
+        char *prefixed_name = mangle_module_symbol(ctx->imports.current_module_prefix, ename);
         zfree(ename);
         ename = prefixed_name;
     }

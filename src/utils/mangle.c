@@ -69,3 +69,14 @@ char *mangle_method_symbol(const char *struct_name, const char *trait_name, cons
     }
     return merge_underscores(tmp);
 }
+
+// The C name of a symbol declared in a module: `prefix__name`. Underscores are not
+// merged: this is the name the declaration registers, so every lookup must build
+// exactly the same one.
+char *mangle_module_symbol(const char *module_prefix, const char *name)
+{
+    int len = snprintf(NULL, 0, "%s__%s", module_prefix, name);
+    char *out = xmalloc((size_t)len + 1);
+    snprintf(out, (size_t)len + 1, "%s__%s", module_prefix, name);
+    return out;
+}

@@ -277,9 +277,7 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                     char *tmp =
                         xmalloc(strlen(si->source_module) + strlen(si->symbol) + suffix.len + 5);
 
-                    char base_raw[MAX_TYPE_NAME_LEN];
-                    snprintf(base_raw, sizeof(base_raw), "%s__%s", si->source_module, si->symbol);
-                    char *base = merge_underscores(base_raw);
+                    char *base = mangle_module_symbol(si->source_module, si->symbol);
                     ASTNode *def = find_struct_def(ctx, base);
                     int is_type = (def != NULL);
 
@@ -310,17 +308,17 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                             }
                         }
 
-                        char tmp_raw[MAX_MANGLED_NAME_LEN];
-                        snprintf(tmp_raw, sizeof(tmp_raw), "%s__%s__%.*s", si->source_module,
-                                 si->symbol, (int)suffix.len, suffix.start);
-                        tmp = merge_underscores(tmp_raw);
+                        char *member = xmalloc((size_t)suffix.len + 1);
+                        memcpy(member, suffix.start, (size_t)suffix.len);
+                        member[suffix.len] = 0;
+                        tmp = mangle_method_symbol(base, NULL, member);
                     }
                     else
                     {
-                        char tmp_raw[MAX_MANGLED_NAME_LEN];
-                        snprintf(tmp_raw, sizeof(tmp_raw), "%s__%s__%.*s", si->source_module,
-                                 si->symbol, (int)suffix.len, suffix.start);
-                        tmp = merge_underscores(tmp_raw);
+                        char *member = xmalloc((size_t)suffix.len + 1);
+                        memcpy(member, suffix.start, (size_t)suffix.len);
+                        member[suffix.len] = 0;
+                        tmp = mangle_method_symbol(base, NULL, member);
                     }
 
                     zfree(acc);
@@ -359,19 +357,10 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                             }
                             else
                             {
-                                char tmp2_raw[MAX_MANGLED_NAME_LEN];
                                 char *type_name =
                                     find_method_owner_type_scoped(ctx, mod->base_name, sbuf);
-                                if (type_name)
-                                {
-                                    snprintf(tmp2_raw, sizeof(tmp2_raw), "%s__%s", type_name, sbuf);
-                                }
-                                else
-                                {
-                                    snprintf(tmp2_raw, sizeof(tmp2_raw), "%s__%s", mod->base_name,
-                                             sbuf);
-                                }
-                                char *tmp2 = merge_underscores(tmp2_raw);
+                                char *tmp2 = type_name ? mangle_method_symbol(type_name, NULL, sbuf)
+                                                       : mangle_module_symbol(mod->base_name, sbuf);
                                 zfree(acc);
                                 acc = tmp2;
                             }
@@ -387,10 +376,8 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                             // Module prefix is set — try the prefixed name
                             // (the struct was defined WITHIN this module, so it's
                             //  registered as prefix__name, not bare name).
-                            char *prefixed = xmalloc(strlen(ctx->imports.current_module_prefix) +
-                                                     strlen(acc) + 3);
-                            sprintf(prefixed, "%s__%s", ctx->imports.current_module_prefix,
-                                    acc); /* safe */
+                            char *prefixed =
+                                mangle_module_symbol(ctx->imports.current_module_prefix, acc);
                             def = find_struct_def(ctx, prefixed);
                             if (def)
                             {
@@ -1071,10 +1058,7 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                     SelectiveImport *si = find_selective_import(ctx, acc);
                     if (si)
                     {
-                        char struct_name_raw[MAX_MANGLED_NAME_LEN];
-                        snprintf(struct_name_raw, sizeof(struct_name_raw), "%s__%s",
-                                 si->source_module, si->symbol); /* TODO: check buffer size */
-                        struct_name = merge_underscores(struct_name_raw);
+                        struct_name = mangle_module_symbol(si->source_module, si->symbol);
                     }
                 }
                 if (struct_name == acc && ctx->imports.current_module_prefix &&
@@ -1085,11 +1069,7 @@ ASTNode *parse_primary_impl(ParserContext *ctx, Lexer *l)
                     // succeeds on the bare name, this is an imported type — skip.
                     if (!find_struct_def(ctx, acc) && !find_type_alias(ctx, acc))
                     {
-                        char prefixed_raw[MAX_MANGLED_NAME_LEN];
-                        snprintf(prefixed_raw, sizeof(prefixed_raw), "%s__%s",
-                                 ctx->imports.current_module_prefix,
-                                 acc); /* TODO: check buffer size */
-                        struct_name = merge_underscores(prefixed_raw);
+                        struct_name = mangle_module_symbol(ctx->imports.current_module_prefix, acc);
                     }
                 }
 

@@ -141,9 +141,7 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
                 else
                 {
                     // Zen module: Use module base name as prefix
-                    size_t mer_sz = strlen(mod->base_name) + strlen(resolved_suffix) + 3;
-                    merged = xmalloc(mer_sz);
-                    snprintf(merged, mer_sz, "%s__%s", mod->base_name, resolved_suffix);
+                    merged = mangle_module_symbol(mod->base_name, resolved_suffix);
                 }
             }
             else
@@ -285,9 +283,7 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
                 // Resolve to the actual struct name which was prefixed during module
                 // parsing
                 zfree(name);
-                name = xmalloc(strlen(si->source_module) + strlen(si->symbol) + 3);
-                snprintf(name, strlen(si->source_module) + strlen(si->symbol) + 3, "%s__%s",
-                         si->source_module, si->symbol);
+                name = mangle_module_symbol(si->source_module, si->symbol);
             }
         }
 
@@ -308,10 +304,7 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
                 // Auto-prefix struct name if in module context (unless it's a known
                 // primitive/generic or an imported type)
                 char *prefixed_name =
-                    xmalloc(strlen(ctx->imports.current_module_prefix) + strlen(name) + 3);
-                snprintf(prefixed_name,
-                         strlen(ctx->imports.current_module_prefix) + strlen(name) + 3, "%s__%s",
-                         ctx->imports.current_module_prefix, name);
+                    mangle_module_symbol(ctx->imports.current_module_prefix, name);
                 zfree(name);
                 name = prefixed_name;
             }

@@ -29,4 +29,10 @@ char *merge_underscores(const char *name);
 char *mangle_method_symbol(const char *struct_name, const char *trait_name,
                            const char *method_name);
 
+/**
+ * @brief The C name of a symbol declared in a module: `prefix__name`, without merging
+ *        underscores (the name the declaration registers).
+ */
+char *mangle_module_symbol(const char *module_prefix, const char *name);
+
 #endif // UTILS_MANGLE_H
