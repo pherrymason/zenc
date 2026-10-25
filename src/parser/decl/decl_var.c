@@ -658,9 +658,11 @@ ASTNode *parse_var_decl(ParserContext *ctx, Lexer *l, int is_export)
         }
     }
 
+    int ended = 0;
     if (lexer_peek(l).kind == TOK_SEMICOLON)
     {
         lexer_next(l);
+        ended = 1;
     }
 
     ASTNode *n = ast_create(NODE_VAR_DECL);
@@ -690,10 +692,11 @@ ASTNode *parse_var_decl(ParserContext *ctx, Lexer *l, int is_export)
         add_to_global_list(ctx, n);
     }
 
-    // Check for 'defer' (Value-Returning Defer)
-    // Only capture if it is NOT a block defer (defer { ... })
-    // If it is a block defer, we leave it for the next parse_statement call.
-    if (lexer_peek(l).kind == TOK_DEFER)
+    // Check for 'defer' (Value-Returning Defer): `let x = v defer f(it);`.
+    // Only capture if it is NOT a block defer (defer { ... }), and not after a `;`:
+    // `let x = v; defer f();` is a defer statement of its own, left for the next
+    // parse_statement call like a block defer.
+    if (!ended && lexer_peek(l).kind == TOK_DEFER)
     {
         Lexer lookahead = *l;
         lexer_next(&lookahead); // Eat defer
