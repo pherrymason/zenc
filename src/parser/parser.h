@@ -417,6 +417,10 @@ struct ParserContext
     EnumVariantReg *enum_variants; ///< Registry of enum variants for global lookup.
     ImplReg *registered_impls;     ///< Cache of type/trait implementations.
 
+    // Names find_struct_def did not find, cached during codegen (utils_registry.c).
+    struct StructMissCache *struct_misses;
+    unsigned int struct_registry_gen; ///< Bumped whenever a struct or enum is registered.
+
     // Types
     SliceType *used_slices;  ///< Cache of generated slice types.
     TupleType *used_tuples;  ///< Cache of generated tuple types.
@@ -967,6 +971,10 @@ const char *get_closest_type_hint(ParserContext *ctx, const char *name);
 void add_instantiated_func(ParserContext *ctx, ASTNode *fn);
 char *ast_to_string(ASTNode *node);
 void struct_hash_insert(ParserContext *ctx, const char *name, ASTNode *node);
+/** @brief Records that a struct or enum was registered, so cached misses may be stale. */
+void struct_registry_changed(ParserContext *ctx);
+/** @brief Starts caching the names find_struct_def does not find (used by codegen). */
+void struct_miss_cache_enable(ParserContext *ctx);
 void register_symbol_to_lsp(ParserContext *ctx, ZenSymbol *s);
 
 // core/ declarations
