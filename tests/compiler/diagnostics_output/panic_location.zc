@@ -1,0 +1,11 @@
+// ARGS: run -q
+fn check(n: int) {
+    if n < 0 {
+        panic("n must not be negative");
+    }
+}
+
+fn main() {
+    check(-1);
+    println "after";
+}

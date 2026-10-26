@@ -756,9 +756,14 @@ void print_type_defs(ParserContext *ctx, ASTNode *nodes)
                  "v.data[v.len++] = va_arg(args, void*); } va_end(args); return v; }\n");
         }
         EMIT(ctx, "#define Vec_push(v, i) _z_vec_push(&(v), (void*)(uintptr_t)(i))\n");
-        EMIT(ctx, "static inline long _z_check_bounds(long index, long limit) { if(index < 0 || "
-                  "index >= limit) { fprintf(stderr, \"Index out of bounds: %%ld (limit "
-                  "%%ld)\\n\", index, limit); exit(1); } return index; }\n");
+        // Each a[i] calls _z_check_bounds where it is written, so the macro gives
+        // __FILE__ and __LINE__ of that Zen C line (from the #line directives).
+        EMIT(ctx, "static inline long _z_check_bounds_at(long index, long limit, const char *file, "
+                  "int line) { if(index < 0 || index >= limit) { fprintf(stderr, \"%%s:%%d: Index "
+                  "out of bounds: %%ld (limit %%ld)\\n\", file, line, index, limit); exit(1); } "
+                  "return index; }\n"
+                  "#define _z_check_bounds(index, limit) _z_check_bounds_at((index), (limit), "
+                  "__FILE__, __LINE__)\n");
     }
     else
     {

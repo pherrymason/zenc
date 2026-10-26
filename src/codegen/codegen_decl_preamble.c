@@ -183,10 +183,13 @@ void emit_preamble(ParserContext *ctx)
             EMIT(ctx, "%s", "#define z_malloc malloc\n#define z_realloc realloc\n");
         }
         EMIT(ctx, "%s", "#define z_free free\n#define z_print printf\n");
+        // panic() becomes a call to __zenc_panic at the call site, so __FILE__ and
+        // __LINE__ (from the #line directives) name the Zen C line of the panic.
         EMIT(ctx, "%s",
-             "static __attribute__((unused)) void __zenc_panic(const char* msg) { fprintf(stderr, "
-             "\"Panic: %s\\n\", msg); "
-             "exit(1); }\n");
+             "static __attribute__((unused)) void __zenc_panic_at(const char *file, int line, "
+             "const char *msg) { fprintf(stderr, \"%s:%d: Panic: %s\\n\", file, line, msg); "
+             "exit(1); }\n"
+             "#define __zenc_panic(msg) __zenc_panic_at(__FILE__, __LINE__, (msg))\n");
         EMIT(ctx, "%s",
              "#if defined(__APPLE__)\n#define _ZC_SEC "
              "__attribute__((used,section(\"__DATA,__zarch\")))\n#elif defined(_WIN32)\n#define "
