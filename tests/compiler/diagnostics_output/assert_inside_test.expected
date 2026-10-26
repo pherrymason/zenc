@@ -1,0 +1,6 @@
+  TEST: first ...   tests/compiler/diagnostics_output/assert_inside_test.zc:3: Assertion failed: boom
+FAIL
+  TEST: second ... OK
+
+1 test(s) failed
+[exit 1]

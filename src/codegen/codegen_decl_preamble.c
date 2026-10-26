@@ -198,14 +198,16 @@ void emit_preamble(ParserContext *ctx)
              "0x79,0x7e,0x73,0x71};\n");
 
         // Inside a test a failed assert counts as a failure; outside one it stops
-        // the program. _zc_in_test is set by the test runner.
+        // the program. _zc_in_test is set by the test runner. __FILE__ and __LINE__
+        // come from the #line directives, so they name the Zen C source.
         EMIT(ctx, "%s",
-             "#define __zenc_assert(cond, ...) if (!(cond)) { fprintf(stderr, \"  Assertion "
-             "failed: \" __VA_ARGS__); fprintf(stderr, \"\\n\"); if (!_zc_in_test) { exit(1); } "
-             "_zc_test_failures++; }\n");
+             "#define __zenc_assert(cond, ...) if (!(cond)) { fprintf(stderr, \"  %s:%d: "
+             "Assertion failed: \", __FILE__, __LINE__); fprintf(stderr, __VA_ARGS__); "
+             "fprintf(stderr, \"\\n\"); if (!_zc_in_test) { exit(1); } _zc_test_failures++; }\n");
         EMIT(ctx, "%s",
-             "#define __zenc_expect(cond, ...) if (!(cond)) { fprintf(stderr, \"  Expectation "
-             "failed: \" __VA_ARGS__); fprintf(stderr, \"\\n\"); _zc_test_failures++; }\n");
+             "#define __zenc_expect(cond, ...) if (!(cond)) { fprintf(stderr, \"  %s:%d: "
+             "Expectation failed: \", __FILE__, __LINE__); fprintf(stderr, __VA_ARGS__); "
+             "fprintf(stderr, \"\\n\"); _zc_test_failures++; }\n");
         EMIT(ctx, "static __attribute__((unused)) int _zc_test_failures = 0;\n");
         EMIT(ctx, "static __attribute__((unused)) int _zc_in_test = 0;\n");
 
