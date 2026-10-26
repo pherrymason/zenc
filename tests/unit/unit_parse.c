@@ -4,10 +4,11 @@
 #include <stdio.h>
 #include <string.h>
 
+static ZenCompiler compiler;
+static ParserContext ctx;
+
 ASTNode *parse_source(const char *src)
 {
-    static ZenCompiler compiler;
-    static ParserContext ctx;
     memset(&compiler, 0, sizeof(compiler));
     memset(&ctx, 0, sizeof(ctx));
     compiler.config.quiet = 1;
@@ -32,4 +33,9 @@ ASTNode *parse_source(const char *src)
         fclose(ctx.cg.hoist_out);
     }
     return root;
+}
+
+ParserContext *parse_source_context(void)
+{
+    return &ctx;
 }
