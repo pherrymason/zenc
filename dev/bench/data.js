@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792955414225,
+  "lastUpdate": 1792996626108,
   "repoUrl": "https://github.com/pherrymason/zenc",
   "entries": {
     "Zen Compiler Benchmarks": [
@@ -553,6 +553,145 @@ window.BENCHMARK_DATA = {
           {
             "name": "Compile (test_vec_ops)",
             "value": 118,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "raulferras@gmail.com",
+            "name": "Raúl Ferràs",
+            "username": "pherrymason"
+          },
+          "committer": {
+            "email": "raulferras@gmail.com",
+            "name": "Raúl Ferràs",
+            "username": "pherrymason"
+          },
+          "distinct": true,
+          "id": "3b6da83b049c0704c6145da6bb8c914b0cadc2c5",
+          "message": "codegen: stop the program when an assert fails outside a test\n\nA failed assert printed its message, added to the test failure count and\nwent on, so a program outside a test ran to the end and exited with 0.\nThe test runner now sets _zc_in_test while the tests run; outside them a\nfailed assert exits with code 1. Inside a test it still records the\nfailure and goes on, and expect is unchanged.",
+          "timestamp": "2026-10-25T20:39:23+01:00",
+          "tree_id": "75fdff4f8872cf648f60507a77e4414f25be10fa",
+          "url": "https://github.com/pherrymason/zenc/commit/3b6da83b049c0704c6145da6bb8c914b0cadc2c5"
+        },
+        "date": 1792996626010,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Compiler (Full Suite Transpilation)",
+            "value": 35960,
+            "unit": "ms"
+          },
+          {
+            "name": "Runtime (test_bigint_factorial)",
+            "value": 3,
+            "unit": "ms"
+          },
+          {
+            "name": "Compile (test_bigint_factorial)",
+            "value": 227,
+            "unit": "ms"
+          },
+          {
+            "name": "Runtime (test_comptime)",
+            "value": 0,
+            "unit": "ms"
+          },
+          {
+            "name": "Compile (test_comptime)",
+            "value": 63,
+            "unit": "ms"
+          },
+          {
+            "name": "Runtime (test_fib_recursive)",
+            "value": 58,
+            "unit": "ms"
+          },
+          {
+            "name": "Compile (test_fib_recursive)",
+            "value": 59,
+            "unit": "ms"
+          },
+          {
+            "name": "Runtime (test_hashmap)",
+            "value": 149,
+            "unit": "ms"
+          },
+          {
+            "name": "Compile (test_hashmap)",
+            "value": 101,
+            "unit": "ms"
+          },
+          {
+            "name": "Runtime (test_hello)",
+            "value": 0,
+            "unit": "ms"
+          },
+          {
+            "name": "Compile (test_hello)",
+            "value": 58,
+            "unit": "ms"
+          },
+          {
+            "name": "Runtime (test_json_parse)",
+            "value": 268,
+            "unit": "ms"
+          },
+          {
+            "name": "Compile (test_json_parse)",
+            "value": 921,
+            "unit": "ms"
+          },
+          {
+            "name": "Runtime (test_mandelbrot)",
+            "value": 23,
+            "unit": "ms"
+          },
+          {
+            "name": "Compile (test_mandelbrot)",
+            "value": 62,
+            "unit": "ms"
+          },
+          {
+            "name": "Runtime (test_sha256)",
+            "value": 122,
+            "unit": "ms"
+          },
+          {
+            "name": "Compile (test_sha256)",
+            "value": 719,
+            "unit": "ms"
+          },
+          {
+            "name": "Runtime (test_sort_large)",
+            "value": 63,
+            "unit": "ms"
+          },
+          {
+            "name": "Compile (test_sort_large)",
+            "value": 95,
+            "unit": "ms"
+          },
+          {
+            "name": "Runtime (test_string_concat)",
+            "value": 1,
+            "unit": "ms"
+          },
+          {
+            "name": "Compile (test_string_concat)",
+            "value": 450,
+            "unit": "ms"
+          },
+          {
+            "name": "Runtime (test_vec_ops)",
+            "value": 18,
+            "unit": "ms"
+          },
+          {
+            "name": "Compile (test_vec_ops)",
+            "value": 153,
             "unit": "ms"
           }
         ]
