@@ -85,6 +85,13 @@ static void sync_link_names_recursive_depth(ParserContext *ctx, ASTNode *node, i
             }
         }
 
+        // An imported module's tree is not a child: it hangs from the first import of its file
+        // only, so it is walked once.
+        if (node->kind == NODE_IMPORT)
+        {
+            sync_link_names_recursive_depth(ctx, node->import_stmt.module_root, depth + 1);
+        }
+
         ASTChildren children = ast_children(node);
         for (int i = 0; i < children.count; i++)
         {
